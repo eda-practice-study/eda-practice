@@ -1,0 +1,22 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: payment
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eda
+    username: eda
+    password: eda
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: payment
+        globally_quoted_identifiers: true
+        hbm2ddl:
+          create_namespaces: true

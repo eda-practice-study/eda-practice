@@ -1,0 +1,22 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: order
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eda
+    username: eda
+    password: eda
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: order
+        globally_quoted_identifiers: true   # order 등 예약어 식별자를 큰따옴표로 감쌈
+        hbm2ddl:
+          create_namespaces: true            # 스키마가 없으면 생성

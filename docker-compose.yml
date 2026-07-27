@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: eda-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: eda
+      POSTGRES_PASSWORD: eda
+      POSTGRES_DB: eda
+    volumes:
+      - eda-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eda"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: eda-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      # 단일 브로커
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_NUM_PARTITIONS: 4
+      KAFKA_LOG_RETENTION_HOURS: 168
+    restart: unless-stopped
+
+  order:
+    build:
+      context: .
+      dockerfile: order/Dockerfile
+    container_name: eda-order
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/eda"
+      SPRING_DATASOURCE_USERNAME: eda
+      SPRING_DATASOURCE_PASSWORD: eda
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  stock:
+    build:
+      context: .
+      dockerfile: stock/Dockerfile
+    container_name: eda-stock
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/eda"
+      SPRING_DATASOURCE_USERNAME: eda
+      SPRING_DATASOURCE_PASSWORD: eda
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  product:
+    build:
+      context: .
+      dockerfile: product/Dockerfile
+    container_name: eda-product
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/eda"
+      SPRING_DATASOURCE_USERNAME: eda
+      SPRING_DATASOURCE_PASSWORD: eda
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 이벤트 전용(웹 없음) → 포트/restart 없음 (리스너 붙으면 상주)
+  payment:
+    build:
+      context: .
+      dockerfile: payment/Dockerfile
+    container_name: eda-payment
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/eda"
+      SPRING_DATASOURCE_USERNAME: eda
+      SPRING_DATASOURCE_PASSWORD: eda
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  eda-postgres-data:
