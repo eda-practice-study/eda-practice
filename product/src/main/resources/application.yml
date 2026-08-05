@@ -20,3 +20,8 @@ spring:
         globally_quoted_identifiers: true
         hbm2ddl:
           create_namespaces: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
