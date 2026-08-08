@@ -16,7 +16,7 @@ class ProductTest {
 
     @Test
     @DisplayName("상품을 등록하면 ACTIVE 상태로 생성된다")
-    void registerProductAsActive() {
+    void createProductAsActive() {
         // when
         Product product = Product.register("티셔츠", BigDecimal.valueOf(10000));
 
@@ -27,16 +27,16 @@ class ProductTest {
     }
 
     @ParameterizedTest
-    @MethodSource("invalidRegisterArgs")
+    @MethodSource("invalidCreateArgs")
     @DisplayName("이름이나 가격이 유효하지 않으면 등록에 실패한다")
-    void failToRegisterWithInvalidInput(String name, BigDecimal price) {
+    void failToCreateWithInvalidInput(String name, BigDecimal price) {
         // when & then
         assertThatThrownBy(() -> Product.register(name, price))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
     }
 
-    static Stream<Arguments> invalidRegisterArgs() {
+    static Stream<Arguments> invalidCreateArgs() {
         BigDecimal price = BigDecimal.valueOf(10000);
         return Stream.of(
                 Arguments.of(null, price),                     // 이름 null
