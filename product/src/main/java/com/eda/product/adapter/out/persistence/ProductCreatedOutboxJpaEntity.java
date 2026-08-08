@@ -55,4 +55,9 @@ public class ProductCreatedOutboxJpaEntity {
         );
     }
 
+    void markPublished() {
+        this.status = OutboxStatus.PUBLISHED;
+        this.publishedAt = Instant.now();
+    }
+
 }

@@ -22,6 +22,6 @@ public class ProductEventKafkaAdapter implements PublishProductEventPort {
                 TOPIC,
                 key,
                 event
-        );
+        ).join();
     }
 }
