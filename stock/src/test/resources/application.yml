@@ -1,4 +1,9 @@
 spring:
+  kafka:
+    listener:
+      auto-startup: false
+    consumer:
+      group-id: stock-product
   datasource:
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
