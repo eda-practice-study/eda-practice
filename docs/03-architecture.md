@@ -59,8 +59,8 @@ adapter.out.* ─(구현)→ port.out ┘
 | 아웃바운드 포트 | `<동사>...Port` | `SaveOrderPort` |
 | 유스케이스 구현 | `<명사>Service` | `OrderCommandService` |
 | 영속성 어댑터 | `<명사>PersistenceAdapter` | `OrderPersistenceAdapter` |
-| 이벤트 구독/발행 | `<Service>EventListener` / `EventPublisherAdapter` | `StockEventListener` |
-| Kafka 토픽 / 컨슈머 그룹 | `<domain>.events` / `<service>-<purpose>` | `order.events` |
+| 이벤트 구독/발행 | `<Service>EventListener` / `EventPublisherAdapter` | `StockEventKafkaListener` |
+| Kafka 토픽 / 컨슈머 그룹 | `<domain>.events` / `<consumer-service>-<source>` | `product.events` / `stock-product` |
 
 ## 도메인 코딩 컨벤션
 

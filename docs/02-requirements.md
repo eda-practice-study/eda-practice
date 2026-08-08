@@ -7,8 +7,8 @@
 
 | 구분 | 기능 | METHOD | URI |
 |------|------|--------|-----|
-| 어드민 | 상품 생성 | POST | `/admin/products` |
-| 어드민 | 재고 등록 | POST | `/admin/stocks` |
+| 어드민 | 상품 생성 | POST | `/api/products` |
+| 어드민 | 재고 등록 | POST | `/api/stocks` |
 | 사용자 | 주문 생성 | POST | `/orders` |
 | 사용자 | 주문 조회 | GET | `/orders/{orderId}` |
 | 사용자 | 환불 요청 | POST | `/orders/{orderId}/refunds` |
@@ -20,7 +20,7 @@
 
 표기: `[서비스] 도메인동작 → 결과상태`. 화살표(↓)는 이벤트 전파.
 
-### 1. 상품 생성 — `POST /admin/products`
+### 1. 상품 생성 — `POST /api/products`
 제약: `name` 필수, `price > 0`
 ```
 [Product] register → ACTIVE
@@ -28,7 +28,7 @@
 [Stock]   createFor(productId) → 재고 0 생성
 ```
 
-### 2. 재고 등록 — `POST /admin/stocks`
+### 2. 재고 등록 — `POST /api/stocks`
 제약: `productId` 존재, `quantity > 0`
 ```
 [Stock] add(quantity) → 재고 증가
