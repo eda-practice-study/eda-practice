@@ -1,5 +1,7 @@
 package com.eda.common.response;
 
+import com.eda.common.exception.ErrorCode;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 public record ApiResponse<T>(
         boolean success,
@@ -14,7 +16,11 @@ public record ApiResponse<T>(
         return new ApiResponse<>(true, message, data);
     }
 
-    public static ApiResponse<Void> fail(String message) {
-        return new ApiResponse<>(false, message, null);
+    public static ApiResponse<ErrorDetail> error(ErrorCode errorCode) {
+        return new ApiResponse<>(false, errorCode.getMessage(), ErrorDetail.of(errorCode));
+    }
+
+    public static ApiResponse<ErrorDetail> validationError(MethodArgumentNotValidException ex) {
+        return new ApiResponse<>(false, ErrorCode.VALIDATION_ERROR.getMessage(), ErrorDetail.validationError(ex));
     }
 }
