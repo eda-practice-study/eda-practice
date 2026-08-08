@@ -1,8 +1,6 @@
 package com.eda.stock.adapter.in.kafka;
 
 import com.eda.common.event.ProductCreatedEvent;
-import com.eda.stock.application.port.in.CreateStockCommand;
-import com.eda.stock.application.port.in.CreateStockUseCase;
 import com.eda.stock.application.port.in.HandleCreateProductCommand;
 import com.eda.stock.application.port.in.HandleProductCreatedUseCase;
 import lombok.RequiredArgsConstructor;

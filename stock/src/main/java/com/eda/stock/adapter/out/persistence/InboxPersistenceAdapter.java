@@ -14,7 +14,7 @@ public class InboxPersistenceAdapter implements InboxEventPort {
 
     @Override
     public boolean existByEventId(UUID eventId) {
-        return inboxEventJpaRepository.existsById(eventId);
+        return inboxEventJpaRepository.existsByEventId(eventId);
     }
 
     @Override

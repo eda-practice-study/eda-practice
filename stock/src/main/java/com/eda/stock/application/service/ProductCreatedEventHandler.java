@@ -7,6 +7,7 @@ import com.eda.stock.application.port.in.HandleProductCreatedUseCase;
 import com.eda.stock.application.port.out.InboxEventPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 
 @Service
@@ -18,6 +19,7 @@ public class ProductCreatedEventHandler implements HandleProductCreatedUseCase {
     private final InboxEventPort inboxEventPort;
     private final CreateStockUseCase createStockUseCase;
 
+    @Transactional
     @Override
     public void handle(HandleCreateProductCommand command) {
         if (inboxEventPort.existByEventId(command.eventId())) return ;
