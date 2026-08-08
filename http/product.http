@@ -1,0 +1,9 @@
+## product 서버 포트: 8083
+
+POST http://localhost:8083/api/products
+Content-Type: application/json
+
+{
+  "productName": "테스트 상품",
+  "price": 10000
+}

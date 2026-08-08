@@ -1,0 +1,9 @@
+## stock 서버 포트: 8084
+
+POST http://localhost:8084/api/stocks
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "quantity": 10
+}
