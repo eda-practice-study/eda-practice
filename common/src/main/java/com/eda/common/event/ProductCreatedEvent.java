@@ -1,6 +1,11 @@
 package com.eda.common.event;
 
+import java.time.Instant;
+import java.util.UUID;
+
 public record ProductCreatedEvent(
-        Long productId
+        UUID eventId,
+        Long productId,
+        Instant occurredAt
 ) {
 }
