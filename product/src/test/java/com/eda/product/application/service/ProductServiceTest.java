@@ -3,7 +3,7 @@ package com.eda.product.application.service;
 import com.eda.common.event.ProductCreatedEvent;
 import com.eda.common.exception.BusinessException;
 import com.eda.product.application.port.in.CreateProductCommand;
-import com.eda.product.application.port.out.PublishProductEventPort;
+import com.eda.product.application.port.out.SaveOutboxPort;
 import com.eda.product.application.port.out.SaveProductPort;
 import com.eda.product.domain.Product;
 import org.junit.jupiter.api.DisplayName;
@@ -27,7 +27,7 @@ public class ProductServiceTest {
     private SaveProductPort saveProductPort;
 
     @Mock
-    private PublishProductEventPort publishProductEventPort;
+    private SaveOutboxPort saveOutboxPort;
 
     @InjectMocks
     private ProductService productService;
@@ -54,14 +54,14 @@ public class ProductServiceTest {
 
         InOrder order = inOrder(
                 saveProductPort,
-                publishProductEventPort
+                saveOutboxPort
         );
 
         order.verify(saveProductPort)
                 .save(any(Product.class));
 
-        order.verify(publishProductEventPort)
-                .publish(any(ProductCreatedEvent.class));
+        order.verify(saveOutboxPort)
+                .save(any(ProductCreatedEvent.class));
 
     }
 
@@ -85,7 +85,7 @@ public class ProductServiceTest {
 
         verifyNoInteractions(
                 saveProductPort,
-                publishProductEventPort
+                saveOutboxPort
         );
     }
 }
