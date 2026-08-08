@@ -40,3 +40,12 @@ subprojects {
         useJUnitPlatform()
     }
 }
+
+// 모든 스프링 부트 서비스 모듈의 실행 가능한 bootJar를 한 번에 빌드
+tasks.register("bootJarAll") {
+    group = "build"
+    description = "Build executable bootJar for all Spring Boot service modules"
+    dependsOn(provider {
+        subprojects.mapNotNull { it.tasks.findByName("bootJar") }
+    })
+}
