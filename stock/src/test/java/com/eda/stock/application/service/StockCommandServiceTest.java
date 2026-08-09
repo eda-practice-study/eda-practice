@@ -2,11 +2,15 @@ package com.eda.stock.application.service;
 
 import static org.assertj.core.api.Assertions.*;
 
+import com.eda.common.exception.BusinessException;
+import com.eda.common.exception.ErrorCode;
+import com.eda.stock.application.port.in.AddStockUseCase.AddStockCommand;
 import com.eda.stock.application.port.out.LoadStockPort;
 import com.eda.stock.application.port.out.SaveStockPort;
 import com.eda.stock.domain.Stock;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,9 +34,11 @@ class StockCommandServiceTest {
         stockCommandService.create(1L);
 
         // then
-        Stock stock = stockStore.findByProductId(1L);
-        assertThat(stock).isNotNull();
-        assertThat(stock.getQuantity()).isZero();
+        assertThat(stockStore.findByProductId(1L))
+                .isPresent()
+                .get()
+                .extracting(Stock::getQuantity)
+                .isEqualTo(0);
     }
 
     @Test
@@ -57,6 +63,42 @@ class StockCommandServiceTest {
         assertThat(stockStore.count()).isEqualTo(2);
     }
 
+    @Test
+    @DisplayName("재고를 등록하면 수량이 누적되고 최종 수량을 반환한다")
+    void addStock() {
+        // given
+        stockCommandService.create(1L);
+
+        // when
+        int first = stockCommandService.add(new AddStockCommand(1L, 100));
+        int second = stockCommandService.add(new AddStockCommand(1L, 30));
+
+        // then
+        assertThat(first).isEqualTo(100);
+        assertThat(second).isEqualTo(130);
+    }
+
+    @Test
+    @DisplayName("재고 row 가 없는 상품이면 UNKNOWN_PRODUCT 로 실패한다")
+    void failToAddStockForUnknownProduct() {
+        // when & then: 상품 미존재인지 이벤트 미전파인지 stock 은 구분할 수 없다
+        assertThatThrownBy(() -> stockCommandService.add(new AddStockCommand(999L, 10)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.UNKNOWN_PRODUCT);
+    }
+
+    @Test
+    @DisplayName("수량이 0 이하이면 도메인 검증에 걸린다")
+    void failToAddNonPositiveQuantity() {
+        // given
+        stockCommandService.create(1L);
+
+        // when & then
+        assertThatThrownBy(() -> stockCommandService.add(new AddStockCommand(1L, 0)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_STOCK_OPERATION);
+    }
+
     /**
      * JPA 없이 저장소를 흉내내는 가짜 어댑터. productId 유일성까지 실제와 동일하게 맞춘다.
      */
@@ -71,14 +113,15 @@ class StockCommandServiceTest {
         }
 
         @Override
+        public Optional<Stock> findByProductId(Long productId) {
+            return Optional.ofNullable(storeByProductId.get(productId));
+        }
+
+        @Override
         public Stock save(Stock stock) {
             ReflectionTestUtils.setField(stock, "id", ++sequence);
             storeByProductId.put(stock.getProductId(), stock);
             return stock;
-        }
-
-        Stock findByProductId(Long productId) {
-            return storeByProductId.get(productId);
         }
 
         int count() {

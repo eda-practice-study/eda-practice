@@ -3,6 +3,7 @@ package com.eda.stock.adapter.out.persistence;
 import com.eda.stock.application.port.out.LoadStockPort;
 import com.eda.stock.application.port.out.SaveStockPort;
 import com.eda.stock.domain.Stock;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,11 @@ public class StockPersistenceAdapter implements LoadStockPort, SaveStockPort {
     @Override
     public boolean existsByProductId(Long productId) {
         return stockJpaRepository.existsByProductId(productId);
+    }
+
+    @Override
+    public Optional<Stock> findByProductId(Long productId) {
+        return stockJpaRepository.findByProductId(productId);
     }
 
     @Override

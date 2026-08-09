@@ -1,5 +1,8 @@
 package com.eda.stock.application.service;
 
+import com.eda.common.exception.BusinessException;
+import com.eda.common.exception.ErrorCode;
+import com.eda.stock.application.port.in.AddStockUseCase;
 import com.eda.stock.application.port.in.CreateStockUseCase;
 import com.eda.stock.application.port.out.LoadStockPort;
 import com.eda.stock.application.port.out.SaveStockPort;
@@ -13,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 @Slf4j
-public class StockCommandService implements CreateStockUseCase {
+public class StockCommandService implements CreateStockUseCase, AddStockUseCase {
 
     private final LoadStockPort loadStockPort;
     private final SaveStockPort saveStockPort;
@@ -27,5 +30,14 @@ public class StockCommandService implements CreateStockUseCase {
 
         saveStockPort.save(Stock.createFor(productId));
         log.info("재고를 생성했습니다. productId={}", productId);
+    }
+
+    @Override
+    public int add(AddStockCommand command) {
+        Stock stock = loadStockPort.findByProductId(command.productId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNKNOWN_PRODUCT));
+
+        stock.add(command.quantity());
+        return stock.getQuantity();
     }
 }

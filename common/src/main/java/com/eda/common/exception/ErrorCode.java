@@ -14,6 +14,7 @@ public enum ErrorCode {
     // stock
     INSUFFICIENT_STOCK(HttpStatus.BAD_REQUEST, "재고가 부족합니다"),
     INVALID_STOCK_OPERATION(HttpStatus.BAD_REQUEST, "재고 처리가 올바르지 않습니다"),
+    UNKNOWN_PRODUCT(HttpStatus.NOT_FOUND, "알 수 없는 상품입니다. 상품 등록 여부를 확인한 뒤 잠시 후 다시 시도해 주세요"),
 
     // order
     INVALID_ORDER_STATUS(HttpStatus.BAD_REQUEST, "허용되지 않는 주문 상태 전이입니다"),
