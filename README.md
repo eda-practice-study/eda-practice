@@ -1,5 +1,8 @@
 # eda-practice
 
+## 1주차 정리 (및 공부) 
+https://kang-log.org/posts/%EA%B3%B5%EB%B6%80/msa-%EA%B5%AC%ED%98%84/product-stock/
+
 EDA(이벤트 기반) MSA 스터디용 프로젝트. `주문 → 재고 차감 → 결제 → 확정` 흐름을 Kafka 이벤트로 구현하며 아래를 학습한다.
 
 - MSA에서의 Kafka 메시지 처리
