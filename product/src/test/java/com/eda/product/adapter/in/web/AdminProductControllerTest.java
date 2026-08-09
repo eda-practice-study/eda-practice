@@ -2,6 +2,7 @@ package com.eda.product.adapter.in.web;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -70,5 +71,26 @@ class AdminProductControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.price").value("가격은 0보다 커야 합니다"));
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 HTTP 메서드는 500이 아니라 405를 반환한다")
+    void returnMethodNotAllowedInsteadOfServerError() throws Exception {
+        // when & then
+        mockMvc.perform(get("/admin/products"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("METHOD_NOT_ALLOWED"));
+    }
+
+    @Test
+    @DisplayName("Content-Type 이 JSON 이 아니면 415를 반환한다")
+    void returnUnsupportedMediaType() throws Exception {
+        // when & then
+        mockMvc.perform(post("/admin/products")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("티셔츠"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.errorCode").value("UNSUPPORTED_MEDIA_TYPE"));
     }
 }
