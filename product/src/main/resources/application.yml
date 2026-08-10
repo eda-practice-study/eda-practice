@@ -20,3 +20,11 @@ spring:
         globally_quoted_identifiers: true
         hbm2ddl:
           create_namespaces: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        spring.json.add.type.headers: false   # 자바 클래스명(FQCN)을 메시지 헤더에 싣지 않음
