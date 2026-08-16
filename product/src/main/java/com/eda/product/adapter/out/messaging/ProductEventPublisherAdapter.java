@@ -20,6 +20,6 @@ public class ProductEventPublisherAdapter implements PublishProductCreatedEventP
                 PRODUCT_EVENTS_TOPIC,
                 event.productId().toString(),
                 event
-        );
+        ).join();
     }
 }
