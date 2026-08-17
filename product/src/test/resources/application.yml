@@ -7,3 +7,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+
+outbox:
+  relay:
+    initial-delay: 3600000   # 릴레이를 검증하는 테스트에서만 켠다
