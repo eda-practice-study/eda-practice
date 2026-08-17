@@ -23,13 +23,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OutboxEvent extends BaseEntity {
 
-    @Column(nullable = false, length = 50, comment = "애그리거트 종류")
+    @Column(name = "aggregate_type", nullable = false, length = 50, comment = "애그리거트 종류")
     private String aggregateType;
 
-    @Column(nullable = false, length = 100, comment = "애그리거트 ID (Kafka 메시지 키로 사용)")
+    @Column(name = "aggregate_id", nullable = false, length = 100, comment = "애그리거트 ID (Kafka 메시지 키로 사용)")
     private String aggregateId;
 
-    @Column(nullable = false, length = 100, comment = "이벤트 종류")
+    @Column(name = "event_type", nullable = false, length = 100, comment = "이벤트 종류")
     private String eventType;
 
     @Column(nullable = false, columnDefinition = "text", comment = "이벤트 JSON 원문")
@@ -39,7 +39,7 @@ public class OutboxEvent extends BaseEntity {
     @Column(nullable = false, length = 20, comment = "발행 상태")
     private OutboxStatus status;
 
-    @Column(comment = "발행 시각. 미발행이면 null")
+    @Column(name = "published_at", comment = "발행 시각. 미발행이면 null")
     private LocalDateTime publishedAt;
 
     private OutboxEvent(String aggregateType, String aggregateId, String eventType, String payload) {

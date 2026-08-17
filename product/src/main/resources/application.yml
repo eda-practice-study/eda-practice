@@ -28,6 +28,9 @@ spring:
       # outbox 의 payload 는 이미 JSON 문자열이라 그대로 내보낸다.
       # 저장된 값과 발행된 값이 같아지고, 릴레이가 이벤트 타입을 알 필요도 없다.
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        # 브로커가 없을 때 send() 가 묶이는 시간. 기본 60초라 릴레이 스레드가 그만큼 멈춘다
+        max.block.ms: 5000
 
 outbox:
   relay:
