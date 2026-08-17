@@ -195,7 +195,16 @@ product/
 | 폴링 주기 | 1000ms | `outbox.relay.fixed-delay` |
 | 초기 지연 | 0ms | `outbox.relay.initial-delay` (테스트에서만 크게 잡아 릴레이를 끈다) |
 | 배치 크기 | 100건 | `findTop100ByStatusOrderByIdAsc` |
-| 발행 타임아웃 | 10초 | `OutboxMessagePublisherAdapter.SEND_TIMEOUT` |
+| ack 대기 | 10초 | `OutboxMessagePublisherAdapter.SEND_TIMEOUT` |
+| send 블로킹 | 5초 | `spring.kafka.producer.properties.max.block.ms` |
+
+`max.block.ms` 는 로컬 검증에서 문제가 드러나 추가했다. **`send()` 는 브로커를 못 찾으면 그 자리에서 블로킹된다.** 기본값이 60초라, 뒤에 붙인 `.get(10초)` 는 `send()` 가 반환한 뒤에야 적용되므로 도달조차 하지 못한다.
+
+```
+Kafka 정지 상태에서:
+  기본값(60s) → 릴레이 스레드가 60초 묶임. 1초 폴링이 무의미해진다
+  5초로 낮춤  → 재시도 간격 약 6초 (5초 블로킹 + 1초 폴링)
+```
 
 ---
 
@@ -209,6 +218,20 @@ product/
 | `ProductCommandServiceTransactionTest` | `@SpringBootTest` | **커밋 시 함께 남고, 롤백 시 함께 사라진다** |
 | `OutboxEventPublisherTest` | 가짜 포트 + 순수 JUnit | 순서, 실패 시 중단, 다음 주기 재시도 |
 | `OutboxIntegrationTest` | `@SpringBootTest` + `@EmbeddedKafka` | 적재 → 발행 → 수신, 저장값 == 발행값 |
+
+### 로컬 검증 (Postgres + Kafka)
+
+유실 방지가 실제로 동작하는지는 브로커를 내려봐야 확인된다.
+
+```
+1. Kafka 정지
+2. 상품 생성          → 201 반환. outbox 에 PENDING 으로 남음
+3. 재고 등록 시도      → 404 (B-2 재현)
+4. Kafka 재시작
+5. 대기              → PENDING 이 PUBLISHED 로 바뀌고 재고 row 생성
+```
+
+**1주차 구조였다면 2번에서 이벤트가 사라졌을 것이다.** 상품만 남고 재고는 영영 생기지 않는다.
 
 ---
 
