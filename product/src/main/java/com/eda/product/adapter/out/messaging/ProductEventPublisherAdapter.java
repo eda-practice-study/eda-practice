@@ -14,6 +14,7 @@ public class ProductEventPublisherAdapter implements PublishProductEventPort {
 
     @Override
     public void publish(ProductCreatedEvent productCreatedEvent) {
-        kafkaTemplate.send("product-created", productCreatedEvent);
+        kafkaTemplate.send("product-created", productCreatedEvent)
+                .join(); // 발행처리가 너무 빠른시기에 처리될 수 있음
     }
 }

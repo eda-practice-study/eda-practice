@@ -59,4 +59,9 @@ public class OutboxEvent {
     public static OutboxEvent create(AggregateType aggregateType, Long aggregateId, EventType eventType, String payload) {
         return new OutboxEvent(aggregateType, aggregateId, eventType, payload);
     }
+
+    public void markPublished() {
+        this.status = OutboxStatus.PUBLISHED;
+        this.publishedAt = LocalDateTime.now();
+    }
 }
