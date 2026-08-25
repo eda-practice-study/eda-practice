@@ -33,7 +33,7 @@ public class ProductCommandService implements CreateProductUseCase {
 
         Product savedProduct = saveProductPort.save(product);
 
-        ProductCreatedEvent event = new ProductCreatedEvent(savedProduct.getId());
+        ProductCreatedEvent event = new ProductCreatedEvent(savedProduct.getId(), savedProduct.getName(), savedProduct.getPrice());
 
         String payload = serialize(event);
 
