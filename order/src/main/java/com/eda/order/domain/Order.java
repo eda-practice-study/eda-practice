@@ -36,6 +36,10 @@ public class Order extends BaseEntity {
     @Column(nullable = false, precision = 19, scale = 2, comment = "주문 총액")
     private BigDecimal totalAmount;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 50, comment = "주문 취소 사유")
+    private OrderCancelReason cancelReason;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "order_id")
     private List<OrderLine> orderLines = new ArrayList<>();
@@ -83,12 +87,16 @@ public class Order extends BaseEntity {
     }
 
     // 재고 부족 or 결제 실패로 인한 취소
-    public void cancel() {
+    public void cancel(OrderCancelReason reason) {
         if (status != OrderStatus.CREATED && status != OrderStatus.STOCK_RESERVED) {
             throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
         }
+        if(reason == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
 
         this.status = OrderStatus.CANCELED;
+        this.cancelReason = reason;
     }
 
     public void refund(Map<Long, Integer> refundQuantityByProductId) {
