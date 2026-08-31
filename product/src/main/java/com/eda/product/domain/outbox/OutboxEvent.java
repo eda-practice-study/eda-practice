@@ -29,7 +29,7 @@ public class OutboxEvent extends BaseEntity {
     private String eventType;
 
     @NotBlank
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "text")
     private String payload;
 
     @Enumerated(EnumType.STRING)
