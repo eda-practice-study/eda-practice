@@ -40,6 +40,11 @@ public class Stock extends BaseEntity {
         this.quantity += quantity;
     }
 
+    public boolean canDeduct(int quantity) {
+        requirePositive(quantity);
+        return this.quantity >= quantity;
+    }
+
     public void deduct(int quantity) {
         requirePositive(quantity);
         if (this.quantity < quantity) {

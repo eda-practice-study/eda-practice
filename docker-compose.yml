@@ -63,9 +63,12 @@ services:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/eda"
       SPRING_DATASOURCE_USERNAME: eda
       SPRING_DATASOURCE_PASSWORD: eda
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
     restart: unless-stopped
 
   stock:
@@ -79,9 +82,12 @@ services:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/eda"
       SPRING_DATASOURCE_USERNAME: eda
       SPRING_DATASOURCE_PASSWORD: eda
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
     restart: unless-stopped
 
   product:
@@ -95,9 +101,12 @@ services:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/eda"
       SPRING_DATASOURCE_USERNAME: eda
       SPRING_DATASOURCE_PASSWORD: eda
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
     restart: unless-stopped
 
   # 이벤트 전용(웹 없음) → 포트/restart 없음 (리스너 붙으면 상주)

@@ -5,7 +5,9 @@ import com.eda.common.exception.GlobalExceptionHandler;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
+@EnableScheduling
 @Import({JpaConfig.class, GlobalExceptionHandler.class})
 @SpringBootApplication
 public class ProductApplication {
