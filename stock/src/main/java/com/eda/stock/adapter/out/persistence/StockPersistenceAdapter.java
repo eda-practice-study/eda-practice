@@ -30,4 +30,9 @@ public class StockPersistenceAdapter implements FindStockPort, SaveStockPort {
     public Stock save(Stock stock) {
         return repository.save(stock);
     }
+
+    @Override
+    public List<Stock> saveAll(Collection<Stock> stocks) {
+        return repository.saveAll(stocks);
+    }
 }
