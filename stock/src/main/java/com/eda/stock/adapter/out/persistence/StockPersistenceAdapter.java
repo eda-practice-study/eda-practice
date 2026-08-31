@@ -6,6 +6,8 @@ import com.eda.stock.domain.Stock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -17,6 +19,11 @@ public class StockPersistenceAdapter implements FindStockPort, SaveStockPort {
     @Override
     public Optional<Stock> findByProductId(Long productId) {
         return repository.findByProductId(productId);
+    }
+
+    @Override
+    public List<Stock> findAllByProductIdIn(Collection<Long> productIds) {
+        return repository.findAllByProductIdInOrderByProductIdAsc(productIds);
     }
 
     @Override
