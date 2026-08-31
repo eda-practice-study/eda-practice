@@ -36,12 +36,7 @@ public class OrderCommandService implements CreateOrderUseCase {
 
     @Override
     public CreateOrderResult create(CreateOrderCommand command) {
-        if (command == null
-                || command.memberId() == null
-                || command.lines() == null
-                || command.lines().isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
-        }
+        validate(command);
 
         List<Long> productIds = command.lines().stream()
                 .map(CreateOrderCommand.LineCommand::productId)
@@ -103,6 +98,28 @@ public class OrderCommandService implements CreateOrderUseCase {
                 savedOrder.getStatus(),
                 savedOrder.getTotalAmount()
         );
+    }
+
+    private void validate(CreateOrderCommand command) {
+        if (command == null
+                || command.memberId() == null
+                || command.memberId() <= 0
+                || command.lines() == null
+                || command.lines().isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        boolean hasInvalidLine = command.lines().stream()
+                .anyMatch(line ->
+                        line == null
+                                || line.productId() == null
+                                || line.productId() <= 0
+                                || line.quantity() <= 0
+                );
+
+        if (hasInvalidLine) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
     }
 
     private String serialize(OrderCreatedEvent event) {

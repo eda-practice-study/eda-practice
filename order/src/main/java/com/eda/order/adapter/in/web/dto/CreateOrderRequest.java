@@ -10,7 +10,7 @@ import java.util.List;
 
 public record CreateOrderRequest(
         @NotEmpty
-        List<@Valid LineRequest> lines
+        List<@NotNull @Valid LineRequest> lines
 ) {
     public CreateOrderCommand toCommand(Long memberId) {
         List<CreateOrderCommand.LineCommand> commands = lines.stream()
