@@ -19,10 +19,15 @@ public class StockCommandService implements CreateStockUseCase, AddStockUseCase 
 
     @Override
     @Transactional
-    public Stock register(Long productId) {
+    public void register(Long productId) {
         Stock stock = Stock.createFor(productId);
+
+        if(loadStockPort.existsByProductId(productId)) {
+            return;
+        }
+
         // 재고 초기 등록 = 0
-        return saveStockPort.save(stock);
+        saveStockPort.save(stock);
     }
 
 

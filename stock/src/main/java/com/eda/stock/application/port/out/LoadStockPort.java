@@ -6,4 +6,5 @@ public interface LoadStockPort {
 
     Stock load(Long productId);
 
+    boolean existsByProductId(Long productId);
 }

@@ -4,6 +4,6 @@ import com.eda.stock.domain.Stock;
 
 public interface SaveStockPort {
 
-    Stock save(Stock stock);
+    void save(Stock stock);
 
 }
