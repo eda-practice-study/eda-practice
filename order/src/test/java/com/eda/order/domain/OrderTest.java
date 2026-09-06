@@ -130,7 +130,7 @@ class OrderTest {
         Order order = createdOrder();
 
         // when
-        order.cancel();
+        order.cancel(CancelReason.INSUFFICIENT_STOCK);
 
         // then
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELED);
@@ -143,7 +143,7 @@ class OrderTest {
         Order order = completedOrder();
 
         // when & then
-        assertThatThrownBy(order::cancel)
+        assertThatThrownBy(() -> order.cancel(CancelReason.INSUFFICIENT_STOCK))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_ORDER_STATUS);
     }

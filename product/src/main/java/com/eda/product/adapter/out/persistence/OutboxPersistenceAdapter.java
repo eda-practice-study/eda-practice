@@ -25,6 +25,8 @@ public class OutboxPersistenceAdapter implements
         ProductCreatedOutboxJpaEntity entity = ProductCreatedOutboxJpaEntity.create(
                 event.eventId(),
                 event.productId(),
+                event.name(),
+                event.price(),
                 event.occurredAt()
         );
 
@@ -40,6 +42,8 @@ public class OutboxPersistenceAdapter implements
                 .map(entity -> new ProductCreatedEvent(
                         entity.getEventId(),
                         entity.getProductId(),
+                        entity.getName(),
+                        entity.getPrice(),
                         entity.getOccurredAt()
                 ))
                 .toList();

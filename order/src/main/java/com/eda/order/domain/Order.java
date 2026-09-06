@@ -40,6 +40,10 @@ public class Order extends BaseEntity {
     @JoinColumn(name = "order_id")
     private List<OrderLine> orderLines = new ArrayList<>();
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cancel_reason", length = 30)
+    private CancelReason cancelReason;
+
     private Order(Long memberId, List<OrderLine> orderLines) {
         this.memberId = memberId;
         this.orderLines = orderLines;
@@ -83,12 +87,18 @@ public class Order extends BaseEntity {
     }
 
     // 재고 부족 or 결제 실패로 인한 취소
-    public void cancel() {
+    public void cancel(CancelReason reason) {
         if (status != OrderStatus.CREATED && status != OrderStatus.STOCK_RESERVED) {
             throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
         }
 
+        if (reason == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+
+
         this.status = OrderStatus.CANCELED;
+        this.cancelReason = reason;
     }
 
     public void refund(Map<Long, Integer> refundQuantityByProductId) {

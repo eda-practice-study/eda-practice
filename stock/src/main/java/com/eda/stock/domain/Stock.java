@@ -40,9 +40,13 @@ public class Stock extends BaseEntity {
         this.quantity += quantity;
     }
 
-    public void deduct(int quantity) {
+    public boolean canDeduct(int quantity) {
         requirePositive(quantity);
-        if (this.quantity < quantity) {
+        return this.quantity >= quantity;
+    }
+
+    public void deduct(int quantity) {
+        if (!canDeduct(quantity)) {
             throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
         }
         this.quantity -= quantity;
