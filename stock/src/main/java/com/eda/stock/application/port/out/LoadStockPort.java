@@ -7,5 +7,7 @@ public interface LoadStockPort {
 
     Optional<Stock> findByProductId(Long productId);
 
+    Optional<Stock> findByProductIdForUpdate(Long productId);
+
     boolean existsByProductId(Long productId);
 }

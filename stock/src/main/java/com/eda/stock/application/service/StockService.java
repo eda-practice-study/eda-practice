@@ -36,7 +36,7 @@ public class StockService implements AddStockUseCase, CreateStockUseCase {
 
     @Override
     public StockAddResult add(Long productId, int quantity) {
-        Stock stock = loadStockPort.findByProductId(productId)
+        Stock stock = loadStockPort.findByProductIdForUpdate(productId)
                 .orElseThrow(() -> {
                     log.warn("재고 등록 실패 - 재고 없음 productId={}, quantity={}", productId, quantity);
                     return new BusinessException(ErrorCode.STOCK_NOT_FOUND);
