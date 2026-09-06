@@ -34,7 +34,9 @@ public class ProductService implements CreateProductUseCase {
         log.info("상품 생성 완료 productId={}, name={}, price={}", saved.getId(), saved.getName(), saved.getPrice());
 
         // 같은 트랜잭션 안에서 outbox에 이벤트 저장
-        String payload = objectMapper.writeValueAsString(new ProductCreated(saved.getId()));
+        String payload = objectMapper.writeValueAsString(
+                new ProductCreated(saved.getId(), saved.getName(), saved.getPrice())
+        );
         saveOutboxEventPort.save(OutboxEvent.create(AggregateType.PRODUCT, saved.getId(), EventTypes.ProductCreated, payload));
         log.info("Outbox 이벤트 저장 완료 productId={}, eventType={}", saved.getId(), EventTypes.ProductCreated);
 
