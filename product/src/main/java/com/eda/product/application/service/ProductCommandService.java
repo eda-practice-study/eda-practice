@@ -29,12 +29,15 @@ public class ProductCommandService implements CreateProductUseCase {
         Product product = saveProductPort.save(Product.register(createProductRequest.name(), createProductRequest.price()));
 
         // 2) 상품 생성 이벤트 - payload
-        ProductCreatedEvent event = new ProductCreatedEvent(product.getId());
+        ProductCreatedEvent event = new ProductCreatedEvent(
+                product.getId(),
+                product.getName(),
+                product.getPrice()
+        );
 
         // 3) 이벤트 -> JSON payload로 변환
         String payload = objectMapper.writeValueAsString(event);
 
-        System.out.println("payload = " + payload);
         // 4) outbox 이벤트 생성
         OutboxEvent outboxEvent = OutboxEvent.create(AggregateType.PRODUCT, product.getId(), EventType.CREATED, payload);
 

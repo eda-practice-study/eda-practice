@@ -1,4 +1,10 @@
 package com.eda.common.event;
 
-public record ProductCreatedEvent(Long productId) {
+import java.math.BigDecimal;
+
+public record ProductCreatedEvent(
+        Long productId,
+        String productName,
+        BigDecimal unitPrice
+) {
 }
