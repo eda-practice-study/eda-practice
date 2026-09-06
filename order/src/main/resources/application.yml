@@ -6,6 +6,9 @@ spring:
     name: order
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
     consumer:
       group-id: order-product
       auto-offset-reset: earliest

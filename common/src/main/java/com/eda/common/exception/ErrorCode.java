@@ -14,6 +14,8 @@ public enum ErrorCode {
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "지원하지 않는 HTTP 메서드입니다"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다"),
     OUTBOX_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Outbox 이벤트가 존재하지 않습니다"),
+    ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "주문이 존재하지 않습니다"),
+    PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "주문 가능한 상품 정보가 없습니다"),
 
     // stock
     STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "재고가 존재하지 않습니다"),
