@@ -21,7 +21,10 @@ public enum ErrorCode {
 
     // payment
     PAYMENT_FAILED(HttpStatus.BAD_REQUEST, "결제에 실패했습니다"),
-    INVALID_PAYMENT_STATUS(HttpStatus.BAD_REQUEST, "허용되지 않는 결제 상태 전이입니다");
+    INVALID_PAYMENT_STATUS(HttpStatus.BAD_REQUEST, "허용되지 않는 결제 상태 전이입니다"),
+
+    // product
+    PRODUCT_NOT_FOUND(HttpStatus.BAD_REQUEST, "찾을 수 없는 상품입니다.");
 
     private final HttpStatus status;
     private final String message;

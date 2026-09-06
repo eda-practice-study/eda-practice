@@ -20,3 +20,11 @@ spring:
         globally_quoted_identifiers: true   # order 등 예약어 식별자를 큰따옴표로 감쌈
         hbm2ddl:
           create_namespaces: true            # 스키마가 없으면 생성
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+      properties:
+        "[spring.json.trusted.packages]": com.eda.common.event
