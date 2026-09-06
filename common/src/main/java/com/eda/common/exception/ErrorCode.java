@@ -19,6 +19,10 @@ public enum ErrorCode {
     // order
     INVALID_ORDER_STATUS(HttpStatus.BAD_REQUEST, "허용되지 않는 주문 상태 전이입니다"),
     INVALID_REFUND(HttpStatus.BAD_REQUEST, "환불 요청이 올바르지 않습니다"),
+    ORDER_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "주문을 찾을 수 없습니다"
+    ),
 
     // payment
     PAYMENT_FAILED(HttpStatus.BAD_REQUEST, "결제에 실패했습니다"),
