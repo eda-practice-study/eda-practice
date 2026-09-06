@@ -7,6 +7,8 @@ import com.eda.common.event.ProductCreatedEvent;
 import com.eda.product.application.port.out.LoadPendingOutboxPort;
 import com.eda.product.application.port.out.MarkOutboxPublishedPort;
 import com.eda.product.application.port.out.PublishProductEventPort;
+
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -40,6 +42,8 @@ class OutboxRelayServiceTest {
         ProductCreatedEvent event = new ProductCreatedEvent(
                 UUID.randomUUID(),
                 1L,
+                "티셔츠",
+                BigDecimal.valueOf(1000),
                 Instant.now()
         );
 
@@ -86,6 +90,8 @@ class OutboxRelayServiceTest {
         ProductCreatedEvent event = new ProductCreatedEvent(
                 UUID.randomUUID(),
                 1L,
+                "티셔츠",
+                BigDecimal.valueOf(1000),
                 Instant.now()
         );
 

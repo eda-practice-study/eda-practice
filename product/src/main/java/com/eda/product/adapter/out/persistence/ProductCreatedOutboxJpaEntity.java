@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -22,6 +23,12 @@ public class ProductCreatedOutboxJpaEntity {
     @Column(name = "product_id", nullable = false, updatable = false)
     private Long productId;
 
+    @Column(name = "product_name", nullable = false, updatable = false)
+    private String name;
+
+    @Column(nullable = false, precision = 19, scale = 2, updatable = false)
+    private BigDecimal price;
+
     @Column(name = "occurred_at", nullable = false, updatable = false)
     private Instant occurredAt;
 
@@ -35,10 +42,14 @@ public class ProductCreatedOutboxJpaEntity {
     private ProductCreatedOutboxJpaEntity(
             UUID eventId,
             Long productId,
+            String name,
+            BigDecimal price,
             Instant occurredAt
     ) {
         this.eventId = eventId;
         this.productId = productId;
+        this.name = name;
+        this.price = price;
         this.occurredAt = occurredAt;
         this.status = OutboxStatus.PENDING;
     }
@@ -46,11 +57,15 @@ public class ProductCreatedOutboxJpaEntity {
     public static ProductCreatedOutboxJpaEntity create(
             UUID eventId,
             Long productId,
+            String name,
+            BigDecimal price,
             Instant occurredAt
     ) {
         return new ProductCreatedOutboxJpaEntity(
                 eventId,
                 productId,
+                name,
+                price,
                 occurredAt
         );
     }

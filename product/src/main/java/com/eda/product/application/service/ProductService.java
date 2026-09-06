@@ -33,6 +33,8 @@ public class ProductService implements CreateProductUseCase {
         ProductCreatedEvent event = new ProductCreatedEvent(
                 UUID.randomUUID(),
                 savedProduct.getId(),
+                savedProduct.getName(),
+                savedProduct.getPrice(),
                 Instant.now()
         );
 

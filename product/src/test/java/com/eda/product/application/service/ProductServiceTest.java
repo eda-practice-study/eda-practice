@@ -9,6 +9,7 @@ import com.eda.product.domain.Product;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -44,6 +45,9 @@ public class ProductServiceTest {
         Product savedProduct = org.mockito.Mockito.mock(Product.class);
 
         when(savedProduct.getId()).thenReturn(1L);
+        when(savedProduct.getName()).thenReturn("티셔츠");
+        when(savedProduct.getPrice()).thenReturn(BigDecimal.valueOf(10000));
+
         when(saveProductPort.save(any(Product.class)))
                 .thenReturn(savedProduct);
 
@@ -51,6 +55,9 @@ public class ProductServiceTest {
         productService.create(command);
 
         // then
+
+        ArgumentCaptor<ProductCreatedEvent> eventCaptor =
+                ArgumentCaptor.forClass(ProductCreatedEvent.class);
 
         InOrder order = inOrder(
                 saveProductPort,
@@ -61,7 +68,15 @@ public class ProductServiceTest {
                 .save(any(Product.class));
 
         order.verify(saveOutboxPort)
-                .save(any(ProductCreatedEvent.class));
+                .save(eventCaptor.capture());
+
+        ProductCreatedEvent event = eventCaptor.getValue();
+
+        assertThat(event.eventId()).isNotNull();
+        assertThat(event.productId()).isEqualTo(1L);
+        assertThat(event.name()).isEqualTo("티셔츠");
+        assertThat(event.price()).isEqualByComparingTo("10000");
+        assertThat(event.occurredAt()).isNotNull();
 
     }
 
