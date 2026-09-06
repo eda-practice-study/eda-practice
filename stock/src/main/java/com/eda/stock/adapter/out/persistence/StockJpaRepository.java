@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface StockJpaRepository extends JpaRepository<Stock, Long> {
@@ -19,5 +20,16 @@ public interface StockJpaRepository extends JpaRepository<Stock, Long> {
             """)
     Optional<Stock> findByProductIdForUpdate(
             @Param("productId") Long productId
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select s 
+            from Stock s
+            where s.productId in :productIds
+            order by s.productId asc
+            """)
+    List<Stock> findAllByProductIdInForUpdate(
+            @Param("productIds") List<Long> productIds
     );
 }

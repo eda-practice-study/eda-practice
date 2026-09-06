@@ -6,6 +6,7 @@ import com.eda.stock.domain.Stock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -24,5 +25,10 @@ public class StockPersistenceAdapter implements
     @Override
     public Optional<Stock> loadByProductIdForUpdate(Long productId) {
         return stockJpaRepository.findByProductIdForUpdate(productId);
+    }
+
+    @Override
+    public List<Stock> loadAllByProductIdsForUpdate(List<Long> productIds) {
+        return stockJpaRepository.findAllByProductIdInForUpdate(productIds);
     }
 }
