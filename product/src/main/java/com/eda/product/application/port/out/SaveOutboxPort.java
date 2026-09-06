@@ -1,4 +1,7 @@
 package com.eda.product.application.port.out;
 
-public class SaveOutboxPort {
+import com.eda.common.event.ProductCreatedEvent;
+
+public interface SaveOutboxPort {
+    void save(ProductCreatedEvent event);
 }

@@ -3,7 +3,7 @@ package com.eda.product.application.service;
 import com.eda.common.event.ProductCreatedEvent;
 import com.eda.product.application.port.in.CreateProductCommand;
 import com.eda.product.application.port.in.CreateProductUseCase;
-import com.eda.product.application.port.out.PublishProductEventPort;
+import com.eda.product.application.port.out.SaveOutboxPort;
 import com.eda.product.application.port.out.SaveProductPort;
 import com.eda.product.domain.Product;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,7 @@ import java.util.UUID;
 public class ProductService implements CreateProductUseCase {
 
     private final SaveProductPort saveProductPort;
-    private final PublishProductEventPort publishProductEventPort;
+    private final SaveOutboxPort saveOutboxPort;
 
     @Override
     @Transactional
@@ -36,7 +36,7 @@ public class ProductService implements CreateProductUseCase {
                 Instant.now()
         );
 
-        publishProductEventPort.publish(event);
+        saveOutboxPort.save(event);
         return savedProduct;
     }
 }

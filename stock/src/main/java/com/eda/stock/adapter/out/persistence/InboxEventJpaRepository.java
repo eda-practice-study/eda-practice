@@ -6,5 +6,4 @@ import java.util.UUID;
 
 public interface InboxEventJpaRepository
         extends JpaRepository<InboxEventJpaEntity, UUID> {
-    boolean existsByEventId(UUID eventId);
 }
