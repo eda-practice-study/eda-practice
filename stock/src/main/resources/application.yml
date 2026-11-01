@@ -5,6 +5,8 @@ spring:
   application:
     name: stock
   kafka:
+    consumer:
+      auto-offset-reset: earliest
     producer:
       acks: all
       properties:
