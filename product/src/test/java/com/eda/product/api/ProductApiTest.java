@@ -114,6 +114,17 @@ class ProductApiTest {
     }
 
     @Test
+    @DisplayName("검증 메시지는 요청 언어와 상관없이 한국어다")
+    void validationMessageInKorean() throws Exception {
+        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON)
+                        .header("Accept-Language", "en")
+                        .content("{ \"name\": \" \", \"price\": 1000001 }"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.name").value("상품명은 필수입니다"))
+                .andExpect(jsonPath("$.errors.price").value("1000000 이하여야 합니다"));
+    }
+
+    @Test
     @DisplayName("이름이 100자를 넘으면 400 이다")
     void tooLongName() throws Exception {
         create("{ \"name\": \"" + "가".repeat(101) + "\", \"price\": 30000 }")

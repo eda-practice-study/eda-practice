@@ -107,6 +107,18 @@ class StockIncreaseApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("검증 메시지는 요청 언어와 상관없이 한국어다")
+    void validationMessageInKorean() throws Exception {
+        registerStock(1L);
+
+        mockMvc.perform(post("/api/stocks/{productId}/increase", 1L).contentType(MediaType.APPLICATION_JSON)
+                        .header("Accept-Language", "en")
+                        .content("{ \"quantity\": 10001 }"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.quantity").value("10000 이하여야 합니다"));
+    }
+
+    @Test
     @DisplayName("Redis 에 키가 없으면 DB 만 늘리고 availableQuantity 는 null 이다. 키를 새로 만들지 않는다")
     void availableUnknown() throws Exception {
         registerStock(1L);
