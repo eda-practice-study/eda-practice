@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -17,11 +18,13 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "product")
+@Table(name = "product", uniqueConstraints =
+        @UniqueConstraint(name = Product.NAME_UNIQUE_CONSTRAINT, columnNames = "name"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Product {
 
+    public static final String NAME_UNIQUE_CONSTRAINT = "uk_product_name";
     public static final int MAX_NAME_LENGTH = 100;
     public static final BigDecimal MAX_PRICE = BigDecimal.valueOf(1_000_000);
 
@@ -29,7 +32,7 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = MAX_NAME_LENGTH, comment = "상품명")
+    @Column(nullable = false, length = MAX_NAME_LENGTH, comment = "상품명")
     private String name;
 
     @Column(nullable = false, precision = 19, scale = 0, comment = "상품 가격")
