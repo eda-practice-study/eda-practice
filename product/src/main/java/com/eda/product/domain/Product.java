@@ -48,7 +48,7 @@ public class Product {
         this.price = price;
     }
 
-    public static Product register(String name, BigDecimal price) {
+    public static Product create(String name, BigDecimal price) {
         if (name == null || name.isBlank() || name.length() > MAX_NAME_LENGTH) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }

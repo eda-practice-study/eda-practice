@@ -68,7 +68,7 @@
 
 | # | 서비스 | 기능 | METHOD | URI | 성공 |
 |---|--------|------|--------|-----|------|
-| 1 | product | 상품 생성 | POST | `/api/products` | 201 |
+| 1 | product | 상품 생성 | POST | `/api/products` | 200 |
 | 2 | product | 상품 목록 조회 | GET | `/api/products` | 200 |
 | 3 | stock | 재고 증가 | POST | `/api/stocks/{productId}/increase` | 200 |
 | 4 | stock | 재고 조회 (검증용) | GET | `/api/stocks/{productId}` | 200 |

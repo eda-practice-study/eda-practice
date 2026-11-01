@@ -15,7 +15,7 @@
 
 - 초기 재고는 받지 않는다. 재고는 재고 증가로만 넣는다.
 
-**Response** `201 Created`
+**Response** `200 OK`
 
 ```json
 {
