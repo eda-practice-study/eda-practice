@@ -49,7 +49,12 @@ public class Product {
     }
 
     public static Product register(String name, BigDecimal price) {
-        if (name == null || name.isBlank() || name.length() > MAX_NAME_LENGTH) {
+        if (name == null || name.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        String trimmed = name.strip();
+        if (trimmed.length() > MAX_NAME_LENGTH) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }
 
@@ -57,7 +62,7 @@ public class Product {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }
 
-        return new Product(name, price);
+        return new Product(trimmed, price);
     }
 
     private static boolean isValidPrice(BigDecimal price) {
