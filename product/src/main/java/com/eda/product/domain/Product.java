@@ -19,14 +19,13 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "product", uniqueConstraints =
-        @UniqueConstraint(name = Product.NAME_UNIQUE_CONSTRAINT, columnNames = "name"))
+        @UniqueConstraint(name = "uk_product_name", columnNames = "name"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Product {
 
-    public static final String NAME_UNIQUE_CONSTRAINT = "uk_product_name";
     public static final int MAX_NAME_LENGTH = 100;
-    public static final BigDecimal MAX_PRICE = BigDecimal.valueOf(1_000_000);
+    private static final BigDecimal MAX_PRICE = BigDecimal.valueOf(1_000_000);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
