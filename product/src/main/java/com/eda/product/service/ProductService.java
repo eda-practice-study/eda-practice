@@ -7,8 +7,6 @@ import com.eda.product.domain.ProductRepository;
 import com.eda.product.exception.ProductNameDuplicatedException;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.exception.ConstraintViolationException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,31 +22,15 @@ public class ProductService {
     @Transactional
     public Product register(String name, BigDecimal price) {
         Product product = Product.register(name, price);
-        Product savedProduct;
-        try {
-            // 커밋 전에 상품명 유일 제약 위반을 확인해 도메인 예외로 변환한다.
-            savedProduct = productRepository.saveAndFlush(product);
-        } catch (DataIntegrityViolationException ex) {
-            if (isDuplicateName(ex)) {
-                throw new ProductNameDuplicatedException();
-            }
-            throw ex;
+        if (productRepository.existsByName(name)) {
+            throw new ProductNameDuplicatedException();
         }
+        Product savedProduct = productRepository.save(product);
 
         outboxWriter.write(
                 PRODUCT_EVENTS_TOPIC,
                 savedProduct.getId().toString(),
                 new ProductCreated(savedProduct.getId(), savedProduct.getName(), savedProduct.getPrice().longValueExact()));
         return savedProduct;
-    }
-
-    private boolean isDuplicateName(DataIntegrityViolationException exception) {
-        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
-            if (cause instanceof ConstraintViolationException violation
-                    && Product.NAME_UNIQUE_CONSTRAINT.equals(violation.getConstraintName())) {
-                return true;
-            }
-        }
-        return false;
     }
 }

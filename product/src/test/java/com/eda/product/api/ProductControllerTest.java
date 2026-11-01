@@ -9,6 +9,7 @@ import com.eda.common.exception.BusinessException;
 import com.eda.common.exception.ErrorCode;
 import com.eda.common.exception.GlobalExceptionHandler;
 import com.eda.product.domain.Product;
+import com.eda.product.exception.ProductControllerAdvice;
 import com.eda.product.exception.ProductNameDuplicatedException;
 import com.eda.product.service.ProductService;
 import java.math.BigDecimal;
@@ -31,7 +32,7 @@ class ProductControllerTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(new ProductController(productService))
-                .setControllerAdvice(new GlobalExceptionHandler())
+                .setControllerAdvice(new GlobalExceptionHandler(), new ProductControllerAdvice())
                 .build();
     }
 
