@@ -19,10 +19,6 @@ public class ProductCreatedListener {
     @KafkaListener(topics = "product.events", groupId = "order-service")
     public void on(ConsumerRecord<String, String> record) {
         Message<ProductCreated> message = Message.from(record, ProductCreated.class, jsonMapper);
-        if (!ProductCreated.class.getSimpleName().equals(message.messageType())) {
-            return;
-        }
-
         productSnapshotService.registerIfAbsent(message.payload());
     }
 }

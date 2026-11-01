@@ -19,7 +19,6 @@ public class ProductSnapshotService {
     private final ProductSnapshotRepository productSnapshotRepository;
     private final OutboxWriter outboxWriter;
 
-    // 같은 상품 생성 이벤트가 다시 와도 스냅샷과 이벤트는 한 번만 만든다
     @Transactional
     public void registerIfAbsent(ProductCreated product) {
         if (productSnapshotRepository.existsByProductId(product.productId())) {

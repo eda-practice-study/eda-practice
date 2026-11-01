@@ -20,10 +20,6 @@ public class ProductCreatedListener {
     @KafkaListener(topics = "product.events", groupId = "stock-service")
     public void on(ConsumerRecord<String, String> record) {
         Message<ProductCreated> message = Message.from(record, ProductCreated.class, jsonMapper);
-        if (!ProductCreated.class.getSimpleName().equals(message.messageType())) {
-            return;
-        }
-
         Long productId = message.payload().productId();
         stockRegistrationService.registerIfAbsent(productId);
         stockRegistrationService.initializeAvailable(productId);

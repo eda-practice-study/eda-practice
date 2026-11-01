@@ -7,6 +7,7 @@ import com.eda.common.outbox.OutboxWriter;
 import com.eda.stock.domain.Stock;
 import com.eda.stock.domain.StockRepository;
 import com.eda.stock.redis.AvailableStockStore;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,6 @@ public class StockIncreaseService {
     public record Result(Long productId, int quantity, Long availableQuantity) {
     }
 
-    // Redis 반영은 행 락을 잡은 채 커밋 전에 한다. 나중에 붙일 Redis 복구와 같은 락으로 줄을 세우기 위해서다.
     @Transactional
     public Result increase(Long productId, int quantity) {
         Stock stock = stockRepository.findByProductIdForUpdate(productId)
@@ -42,9 +42,8 @@ public class StockIncreaseService {
         return new Result(productId, stock.getQuantity(), available);
     }
 
-    // Redis 가 실패해도 DB 는 반영하고 null 로 응답한다
     private Long increaseAvailable(Long productId, int quantity) {
-        Long available;
+        Optional<Long> available;
         try {
             available = availableStockStore.increaseIfPresent(productId, quantity);
         } catch (RuntimeException e) {
@@ -52,10 +51,8 @@ public class StockIncreaseService {
             return null;
         }
 
-        if (available != null) {
-            compensateOnRollback(productId, quantity);
-        }
-        return available;
+        available.ifPresent(ignored -> compensateOnRollback(productId, quantity));
+        return available.orElse(null);
     }
 
     private void compensateOnRollback(Long productId, int quantity) {

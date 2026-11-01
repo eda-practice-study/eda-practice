@@ -1,12 +1,12 @@
 package com.eda.stock.redis;
 
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
-// Redis 의 가용 재고. DB 재고(실재고)가 원본이고 여기는 따라 움직인다.
 @Component
 @RequiredArgsConstructor
 public class AvailableStockStore {
@@ -28,9 +28,9 @@ public class AvailableStockStore {
         redis.opsForValue().setIfAbsent(key(productId), String.valueOf(quantity));
     }
 
-    // 더한 뒤의 가용 재고. 키가 없으면 null.
-    public Long increaseIfPresent(Long productId, int quantity) {
-        return redis.execute(INCREASE_IF_PRESENT, List.of(key(productId)), String.valueOf(quantity));
+    public Optional<Long> increaseIfPresent(Long productId, int quantity) {
+        return Optional.ofNullable(
+                redis.execute(INCREASE_IF_PRESENT, List.of(key(productId)), String.valueOf(quantity)));
     }
 
     private String key(Long productId) {

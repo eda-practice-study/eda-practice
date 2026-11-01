@@ -19,7 +19,6 @@ public class StockRegistrationService {
     private final OutboxWriter outboxWriter;
     private final AvailableStockStore availableStockStore;
 
-    // 같은 상품 생성 이벤트가 다시 와도 재고 행과 이벤트는 한 번만 만든다
     @Transactional
     public void registerIfAbsent(Long productId) {
         if (stockRepository.existsByProductId(productId)) {

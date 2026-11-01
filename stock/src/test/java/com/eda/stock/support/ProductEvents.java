@@ -12,7 +12,6 @@ public final class ProductEvents {
     private ProductEvents() {
     }
 
-    // OutboxRelay 가 보내는 것과 같은 모양의 레코드. 같은 messageId 로 다시 보내면 재전송과 같다.
     public static ProducerRecord<String, String> productCreated(UUID messageId, ProductCreated payload) {
         ProducerRecord<String, String> record = new ProducerRecord<>("product.events",
                 String.valueOf(payload.productId()),
