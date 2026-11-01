@@ -1,6 +1,9 @@
 package com.eda.stock.application;
 
+import com.eda.common.exception.BusinessException;
+import com.eda.common.exception.ErrorCode;
 import com.eda.common.message.Topics;
+import com.eda.common.message.stock.StockIncreased;
 import com.eda.common.message.stock.StockRegistered;
 import com.eda.common.outbox.OutboxWriter;
 import com.eda.stock.domain.Stock;
@@ -27,6 +30,18 @@ public class StockService {
         Stock stock = stockRepository.save(Stock.createFor(productId));
         outboxWriter.write(Topics.STOCK_EVENTS, String.valueOf(productId),
                 new StockRegistered(productId, stock.getQuantity()));
+
+        return stock;
+    }
+
+    @Transactional
+    public Stock increase(Long productId, int quantity) {
+        Stock stock = stockRepository.findByProductIdForUpdate(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STOCK_NOT_FOUND));
+
+        stock.increase(quantity);
+        outboxWriter.write(Topics.STOCK_EVENTS, String.valueOf(productId),
+                new StockIncreased(productId, quantity, stock.getQuantity()));
 
         return stock;
     }
