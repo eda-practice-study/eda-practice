@@ -27,3 +27,9 @@ spring:
         default_schema: stock
         hbm2ddl:
           create_namespaces: true
+
+stock:
+  reconcile:
+    enabled: true
+    interval: 60s   # 대사 주기
+    grace: 10s      # 이 시간 안에 바뀐 재고는 대사에서 건너뛴다

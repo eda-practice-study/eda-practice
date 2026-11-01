@@ -10,3 +10,7 @@ spring:
   kafka:
     listener:
       auto-startup: false
+
+stock:
+  reconcile:
+    enabled: false
