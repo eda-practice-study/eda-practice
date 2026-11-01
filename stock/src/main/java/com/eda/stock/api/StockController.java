@@ -26,6 +26,7 @@ public class StockController {
             @Valid @RequestBody IncreaseStockRequest request
     ) {
         Stock stock = stockService.increase(productId, request.quantity());
-        return ApiResponse.ok(StockResponse.of(stock, null));
+        Long availableQuantity = stockService.increaseAvailable(productId, request.quantity());
+        return ApiResponse.ok(StockResponse.of(stock, availableQuantity));
     }
 }

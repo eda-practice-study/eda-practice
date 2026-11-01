@@ -17,11 +17,22 @@ public class StockRedisRepository {
     private static final RedisScript<Long> INITIALIZE_STOCK =
             RedisScript.of(new ClassPathResource("redis/initialize-stock.lua"), Long.class);
 
+    private static final RedisScript<Long> INCREASE_AVAILABLE =
+            RedisScript.of(new ClassPathResource("redis/increase-available.lua"), Long.class);
+
     private final StringRedisTemplate redisTemplate;
 
     public void initialize(Long productId, int quantity) {
         redisTemplate.execute(
                 INITIALIZE_STOCK,
+                List.of(key(productId)),
+                String.valueOf(quantity)
+        );
+    }
+
+    public Long increaseAvailable(Long productId, int quantity) {
+        return redisTemplate.execute(
+                INCREASE_AVAILABLE,
                 List.of(key(productId)),
                 String.valueOf(quantity)
         );

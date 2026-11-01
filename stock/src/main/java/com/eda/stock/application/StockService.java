@@ -7,17 +7,21 @@ import com.eda.common.message.stock.StockIncreased;
 import com.eda.common.message.stock.StockRegistered;
 import com.eda.common.outbox.OutboxWriter;
 import com.eda.stock.domain.Stock;
+import com.eda.stock.infrastructure.StockRedisRepository;
 import com.eda.stock.infrastructure.StockRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StockService {
 
     private final StockRepository stockRepository;
+    private final StockRedisRepository stockRedisRepository;
     private final OutboxWriter outboxWriter;
 
     @Transactional
@@ -44,5 +48,14 @@ public class StockService {
                 new StockIncreased(productId, quantity, stock.getQuantity()));
 
         return stock;
+    }
+
+    public Long increaseAvailable(Long productId, int quantity) {
+        try {
+            return stockRedisRepository.increaseAvailable(productId, quantity);
+        } catch (RuntimeException e) {
+            log.warn("Redis 재고 증가 실패 productId={}, quantity={}", productId, quantity, e);
+            return null;
+        }
     }
 }
