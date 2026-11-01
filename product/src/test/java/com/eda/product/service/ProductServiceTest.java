@@ -74,13 +74,21 @@ class ProductServiceTest {
     @ValueSource(strings = {" ", "\t"})
     @DisplayName("상품명이 없거나 공백이면 상품과 이벤트를 저장하지 않는다")
     void invalidName(String name) {
-        assertValidationFailure(name, BigDecimal.TEN);
+        assertThatThrownBy(() -> productService.register(name, BigDecimal.TEN))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+        verifyNoInteractions(productRepository, outboxWriter);
     }
 
     @Test
     @DisplayName("상품명이 100자를 초과하면 상품과 이벤트를 저장하지 않는다")
     void nameTooLong() {
-        assertValidationFailure("가".repeat(101), BigDecimal.TEN);
+        String name = "가".repeat(101);
+
+        assertThatThrownBy(() -> productService.register(name, BigDecimal.TEN))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+        verifyNoInteractions(productRepository, outboxWriter);
     }
 
     @ParameterizedTest
@@ -88,7 +96,12 @@ class ProductServiceTest {
     @ValueSource(strings = {"0", "-1", "1000001", "100.5"})
     @DisplayName("가격이 없거나 범위를 벗어나거나 소수면 상품과 이벤트를 저장하지 않는다")
     void invalidPrice(String price) {
-        assertValidationFailure("키보드", price == null ? null : new BigDecimal(price));
+        BigDecimal invalidPrice = price == null ? null : new BigDecimal(price);
+
+        assertThatThrownBy(() -> productService.register("키보드", invalidPrice))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+        verifyNoInteractions(productRepository, outboxWriter);
     }
 
     @Test
@@ -147,13 +160,6 @@ class ProductServiceTest {
 
         assertThatThrownBy(() -> productService.register("키보드", BigDecimal.TEN)).isSameAs(failure);
         verify(productRepository).saveAndFlush(any(Product.class));
-    }
-
-    private void assertValidationFailure(String name, BigDecimal price) {
-        assertThatThrownBy(() -> productService.register(name, price))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
-        verifyNoInteractions(productRepository, outboxWriter);
     }
 
     private DataIntegrityViolationException constraintViolation(String constraintName) {
