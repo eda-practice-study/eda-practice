@@ -102,7 +102,7 @@ class StockIncreaseApiTest {
     void rejectInvalidQuantity(String request) throws Exception {
         var response = post(PRODUCT_ID, request);
         assertThat(response.statusCode()).isEqualTo(400);
-        assertThat(jsonMapper.readTree(response.body()).path("errorCode").asText())
+        assertThat(jsonMapper.readTree(response.body()).path("errorCode").asString())
                 .isEqualTo("VALIDATION_ERROR");
         assertThat(stockRepository.findByProductId(PRODUCT_ID).orElseThrow().getQuantity()).isEqualTo(50);
         assertThat(outboxRepository.count()).isZero();
@@ -123,7 +123,7 @@ class StockIncreaseApiTest {
     void missingStockReturns404() throws Exception {
         var response = post(PRODUCT_ID + 1, "{\"quantity\":100}");
         assertThat(response.statusCode()).isEqualTo(404);
-        assertThat(jsonMapper.readTree(response.body()).path("errorCode").asText())
+        assertThat(jsonMapper.readTree(response.body()).path("errorCode").asString())
                 .isEqualTo("STOCK_NOT_FOUND");
         assertThat(outboxRepository.count()).isZero();
         verify(redisRepository, never()).increase(any(), anyInt());
