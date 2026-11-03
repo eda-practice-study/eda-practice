@@ -16,4 +16,11 @@ public class StockRedisRepository {
         redisTemplate.opsForValue()
                 .setIfAbsent(key, String.valueOf(quantity));
     }
+
+    public Long increase(Long productId, int quantity) {
+        String key = "stock:available:" + productId;
+
+        return redisTemplate.opsForValue()
+                .increment(key, quantity);
+    }
 }
