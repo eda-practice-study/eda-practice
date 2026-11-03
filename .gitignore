@@ -46,3 +46,6 @@ AGENTS.md
 
 ### macOS ###
 .DS_Store
+
+### Local PR draft ###
+/PR_DRAFT.local.txt
