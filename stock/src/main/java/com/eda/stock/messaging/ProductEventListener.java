@@ -3,6 +3,8 @@ package com.eda.stock.messaging;
 import com.eda.common.message.Message;
 import com.eda.common.message.ProductCreated;
 import com.eda.stock.application.StockService;
+import com.eda.stock.domain.Stock;
+import com.eda.stock.infrastructure.StockRedisRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -17,6 +19,7 @@ public class ProductEventListener {
 
     private final JsonMapper jsonMapper;
     private final StockService stockService;
+    private final StockRedisRepository stockRedisRepository;
 
     @KafkaListener(
             topics = "product.events",
@@ -28,7 +31,15 @@ public class ProductEventListener {
 
         ProductCreated event = message.payload();
 
-        stockService.initializeStock(event.productId());
+        // stock db에 먼저 저장
+        Stock stock = stockService.initializeStock(event.productId());
+
+        // 이후 redis db에 캐싱
+        stockRedisRepository.initializeIfAbsent(
+                stock.getProductId(),
+                stock.getQuantity()
+        );
+
 
         log.info(
                 "상품 초기 재 처리 완료: messageId={}, productId={}, name={}, price={}",
