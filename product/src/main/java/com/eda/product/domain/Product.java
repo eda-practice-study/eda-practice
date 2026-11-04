@@ -23,7 +23,10 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class Product {
 
     public static final int MAX_NAME_LENGTH = 100;
-    public static final BigDecimal MAX_PRICE = BigDecimal.valueOf(1_000_000);
+
+    public static final String MAX_PRICE_VALUE = "1000000";
+    public static final BigDecimal MAX_PRICE =
+            new BigDecimal(MAX_PRICE_VALUE);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
