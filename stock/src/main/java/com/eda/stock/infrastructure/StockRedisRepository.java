@@ -1,24 +1,25 @@
 package com.eda.stock.infrastructure;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class StockRedisRepository {
 
     private static final RedisScript<Long> INCREASE_IF_PRESENT =
             // 레디스에 키존재확인 없다 -> 아무일없음, 있다 -> 그 키 값에 증가
-            RedisScript.of("""
-                    if redis.call('EXISTS', KEYS[1]) == 0 then
-                        return nil
-                    end
-                    return redis.call('INCRBY', KEYS[1], ARGV[1])
-                    """, Long.class);
+            RedisScript.of(
+                    new ClassPathResource("luascript/increase-if-present.lua"),
+                    Long.class
+            );
 
     private final StringRedisTemplate redisTemplate;
 
@@ -26,8 +27,13 @@ public class StockRedisRepository {
         String key = "stock:available:" + productId;
 
         // redisTemplate은 redis 접근 도구, opsForValue는 Redis의 문자열 값을 다루는 기능을 가져오는 메서드
-        redisTemplate.opsForValue()
+        // false는 오류가 아니라 이미 키가 있어 기존 값을 유지했다는 뜻이다.
+        Boolean initialized = redisTemplate.opsForValue()
                 .setIfAbsent(key, String.valueOf(quantity));
+
+        if (!initialized) {
+            log.debug("기존 Redis 재고 유지: productId={}", productId);
+        }
     }
 
     public Long increase(Long productId, int quantity) {

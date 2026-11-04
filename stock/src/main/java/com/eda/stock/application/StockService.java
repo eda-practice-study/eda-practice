@@ -56,7 +56,7 @@ public class StockService {
                     new BusinessException(ErrorCode.STOCK_NOT_FOUND)
                 );
 
-        // JPA가 관리하는 객체의 값을 변경 -> 변경 감지, 트랜잭션 끝날때 값을 반영
+        // JPA가 관리하는 객체의 값을 변경 -> 변경 감지, 트랜잭션 끝날때 값을 반영, 영속 컨텍스트
         stock.increase(increasedQuantity);
 
         outboxWriter.write(
