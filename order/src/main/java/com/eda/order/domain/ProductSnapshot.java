@@ -1,8 +1,7 @@
-package com.eda.order.domain.product;
+package com.eda.order.domain;
 
 import com.eda.common.exception.BusinessException;
 import com.eda.common.exception.ErrorCode;
-import com.eda.order.domain.Order;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

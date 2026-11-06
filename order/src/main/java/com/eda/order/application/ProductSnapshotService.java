@@ -1,10 +1,9 @@
 package com.eda.order.application;
 
-import com.eda.common.message.ProductCreated;
 import com.eda.common.message.ProductSnapshotCreated;
 import com.eda.common.outbox.OutboxWriter;
-import com.eda.order.domain.product.ProductSnapshot;
-import com.eda.order.domain.product.ProductSnapshotRepository;
+import com.eda.order.domain.ProductSnapshot;
+import com.eda.order.infrastructure.ProductSnapshotRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

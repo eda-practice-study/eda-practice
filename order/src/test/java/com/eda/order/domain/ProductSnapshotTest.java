@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.*;
 import com.eda.common.exception.ErrorCode;
 import java.math.BigDecimal;
 
-import com.eda.order.domain.product.ProductSnapshot;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
