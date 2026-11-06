@@ -34,7 +34,7 @@ public class ProductService {
 
         // 이벤트 저장
         outboxWriter.write(
-                "products.events",
+                "product.events",
                 product.getId().toString(),
                 new ProductCreated(product.getId(), product.getName(), product.getPrice())
         );
