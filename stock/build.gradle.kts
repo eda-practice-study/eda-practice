@@ -8,6 +8,7 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.kafka:spring-kafka-test")

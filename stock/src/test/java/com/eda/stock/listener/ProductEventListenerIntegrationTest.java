@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.eda.common.message.MessageHeader;
+import com.eda.stock.cache.StockCache;
 import com.eda.stock.domain.ProcessedMessageRepository;
 import com.eda.stock.domain.StockRepository;
 import com.eda.stock.service.StockService;
@@ -31,6 +32,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -38,6 +42,12 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:kafka-stock;DB_CLOSE_DELAY=-1",
@@ -46,7 +56,20 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 })
 @EmbeddedKafka(partitions = 1, topics = {"product.events", "stock.product.events.DLT"})
 @DirtiesContext
+@Testcontainers
 class ProductEventListenerIntegrationTest {
+
+    @Container
+    static final GenericContainer<?> valkey = new GenericContainer<>("valkey/valkey:9.0-alpine")
+            .withExposedPorts(6379);
+
+    @DynamicPropertySource
+    static void redis(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.redis.host", valkey::getHost);
+        registry.add("spring.data.redis.port", () -> valkey.getMappedPort(6379));
+        registry.add("spring.data.redis.connect-timeout", () -> "500ms");
+        registry.add("spring.data.redis.timeout", () -> "500ms");
+    }
 
     @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
@@ -60,18 +83,32 @@ class ProductEventListenerIntegrationTest {
     private StockService stockService;
     @MockitoSpyBean
     private DeadLetterPublishingRecoverer recoverer;
+    @MockitoSpyBean
+    private StockCache stockCache;
+    @MockitoSpyBean
+    private StringRedisTemplate redisTemplate;
 
     @Test
     @DisplayName("Kafka로 받은 이벤트는 초기 재고를 만들고 재수신해도 기존 수량을 보존한다")
     void receiveAndRedeliver() throws Exception {
         UUID messageId = UUID.randomUUID();
-        kafkaTemplate.send(event(messageId, 101L)).get(10, TimeUnit.SECONDS);
-        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
-                assertThat(processedMessageRepository.existsById(messageId)).isTrue());
+        var databaseCommitted = new AtomicBoolean(false);
+        doAnswer(invocation -> {
+            databaseCommitted.set(!TransactionSynchronizationManager.isActualTransactionActive()
+                    && processedMessageRepository.existsById(messageId)
+                    && stockRepository.existsByProductId(101L));
+            return invocation.callRealMethod();
+        }).when(stockCache).initialize(101L);
+        var firstMetadata = kafkaTemplate.send(event(messageId, 101L)).get(10, TimeUnit.SECONDS).getRecordMetadata();
+        awaitCommitted(firstMetadata);
+        assertThat(databaseCommitted).isTrue();
+        assertThat(redisTemplate.opsForValue().get("stock:available:101")).isEqualTo("0");
+        assertThat(redisTemplate.getExpire("stock:available:101")).isEqualTo(-1L);
         var stock = stockRepository.findByProductId(101L).orElseThrow();
         assertThat(stock.getQuantity()).isZero();
         stock.increase(10);
         stockRepository.saveAndFlush(stock);
+        redisTemplate.opsForValue().set("stock:available:101", "10");
 
         kafkaTemplate.send(event(messageId, 101L)).get(10, TimeUnit.SECONDS);
         UUID anotherMessage = UUID.randomUUID();
@@ -80,7 +117,58 @@ class ProductEventListenerIntegrationTest {
 
         assertThat(stockRepository.findByProductId(101L).orElseThrow().getQuantity()).isEqualTo(10);
         assertThat(processedMessageRepository.existsById(anotherMessage)).isTrue();
+        assertThat(redisTemplate.opsForValue().get("stock:available:101")).isEqualTo("10");
         verify(stockService, times(2)).createFor(messageId, 101L);
+        verify(stockCache, times(1)).initialize(101L);
+    }
+
+    @Test
+    @DisplayName("새 Stock이어도 Redis 키가 이미 있으면 초기화로 덮어쓰지 않는다")
+    void existingRedisValue() throws Exception {
+        UUID messageId = UUID.randomUUID();
+        redisTemplate.opsForValue().set("stock:available:107", "25");
+
+        var metadata = kafkaTemplate.send(event(messageId, 107L)).get(10, TimeUnit.SECONDS).getRecordMetadata();
+        awaitCommitted(metadata);
+
+        assertThat(stockRepository.findByProductId(107L).orElseThrow().getQuantity()).isZero();
+        assertThat(redisTemplate.opsForValue().get("stock:available:107")).isEqualTo("25");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("Redis 갱신 실패에도 DB와 이력을 커밋하고 Kafka 재시도나 DLT 없이 완료한다")
+    void redisFailureKeepsDatabaseSuccess() throws Exception {
+        UUID messageId = UUID.randomUUID();
+        ValueOperations<String, String> values = mock(ValueOperations.class);
+        when(values.setIfAbsent("stock:available:108", "0"))
+                .thenThrow(new RedisConnectionFailureException("Redis unavailable"));
+        doReturn(values).when(redisTemplate).opsForValue();
+
+        var metadata = kafkaTemplate.send(event(messageId, 108L)).get(10, TimeUnit.SECONDS).getRecordMetadata();
+        awaitCommitted(metadata);
+
+        assertThat(stockRepository.findByProductId(108L).orElseThrow().getQuantity()).isZero();
+        assertThat(processedMessageRepository.existsById(messageId)).isTrue();
+        verify(stockService, times(1)).createFor(messageId, 108L);
+        verify(values, times(1)).setIfAbsent("stock:available:108", "0");
+        verify(recoverer, never()).accept(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("처리 완료 후 Redis 키가 유실되어도 이벤트 재수신으로 0을 다시 쓰지 않는다")
+    void duplicateDoesNotRepairMissingKey() throws Exception {
+        UUID messageId = UUID.randomUUID();
+        var firstMetadata = kafkaTemplate.send(event(messageId, 109L)).get(10, TimeUnit.SECONDS).getRecordMetadata();
+        awaitCommitted(firstMetadata);
+        redisTemplate.delete("stock:available:109");
+
+        var metadata = kafkaTemplate.send(event(messageId, 109L)).get(10, TimeUnit.SECONDS).getRecordMetadata();
+        awaitCommitted(metadata);
+
+        assertThat(stockRepository.existsByProductId(109L)).isTrue();
+        assertThat(redisTemplate.hasKey("stock:available:109")).isFalse();
+        verify(stockCache, times(1)).initialize(109L);
     }
 
     @Test
@@ -120,6 +208,7 @@ class ProductEventListenerIntegrationTest {
         assertThat(deadLetter.headers().lastHeader(MessageHeader.OCCURRED_AT)).isNotNull();
         assertThat(deadLetter.headers().lastHeader(KafkaHeaders.DLT_EXCEPTION_FQCN)).isNotNull();
         assertThat(stockRepository.existsByProductId(103L)).isFalse();
+        verify(stockCache, never()).initialize(103L);
         assertThat(processedMessageRepository.existsById(messageId)).isFalse();
         assertThat(stockRepository.existsByProductId(104L)).isTrue();
         verify(stockService, times(4)).createFor(messageId, 103L);

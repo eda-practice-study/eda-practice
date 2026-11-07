@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: stock
+  data:
+    redis:
+      connect-timeout: 500ms
+      timeout: 500ms
   kafka:
     consumer:
       enable-auto-commit: false

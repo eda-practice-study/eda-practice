@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.eda.common.message.MessageHeader;
+import com.eda.stock.cache.StockCache;
 import com.eda.stock.exception.InvalidProductEventException;
 import com.eda.stock.service.StockService;
 import java.nio.charset.StandardCharsets;
@@ -19,17 +20,34 @@ import tools.jackson.databind.json.JsonMapper;
 class ProductEventListenerTest {
 
     private final StockService stockService = mock(StockService.class);
-    private final ProductEventListener listener = new ProductEventListener(JsonMapper.builder().build(), stockService);
+    private final StockCache stockCache = mock(StockCache.class);
+    private final ProductEventListener listener = new ProductEventListener(JsonMapper.builder().build(), stockService, stockCache);
 
     @Test
     @DisplayName("상품 생성 이벤트를 변환하고 식별자를 서비스에 전달한다")
     void receive() {
         UUID messageId = UUID.randomUUID();
         var record = record(messageId, "{\"productId\":1,\"name\":\"키보드\",\"price\":30000}");
+        when(stockService.createFor(messageId, 1L)).thenReturn(true);
+
+        listener.on(record);
+
+        var order = inOrder(stockService, stockCache);
+        order.verify(stockService).createFor(messageId, 1L);
+        order.verify(stockCache).initialize(1L);
+    }
+
+    @Test
+    @DisplayName("이미 처리한 메시지나 기존 재고면 Redis 초기화를 건너뛴다")
+    void existingStock() {
+        UUID messageId = UUID.randomUUID();
+        var record = record(messageId, "{\"productId\":1,\"name\":\"키보드\",\"price\":30000}");
+        when(stockService.createFor(messageId, 1L)).thenReturn(false);
 
         listener.on(record);
 
         verify(stockService).createFor(messageId, 1L);
+        verifyNoInteractions(stockCache);
     }
 
     @Test
@@ -40,7 +58,7 @@ class ProductEventListenerTest {
 
         listener.on(record);
 
-        verifyNoInteractions(stockService);
+        verifyNoInteractions(stockService, stockCache);
     }
 
     @ParameterizedTest
@@ -50,7 +68,7 @@ class ProductEventListenerTest {
         var record = record(UUID.randomUUID(), payload);
 
         assertThatThrownBy(() -> listener.on(record)).isInstanceOf(InvalidProductEventException.class);
-        verifyNoInteractions(stockService);
+        verifyNoInteractions(stockService, stockCache);
     }
 
     @ParameterizedTest
@@ -61,7 +79,7 @@ class ProductEventListenerTest {
         record.headers().remove(header);
 
         assertThatThrownBy(() -> listener.on(record)).isInstanceOf(InvalidProductEventException.class);
-        verifyNoInteractions(stockService);
+        verifyNoInteractions(stockService, stockCache);
     }
 
     @Test
@@ -73,6 +91,7 @@ class ProductEventListenerTest {
         var record = record(messageId, "{\"productId\":1,\"name\":\"키보드\",\"price\":30000}");
 
         assertThatThrownBy(() -> listener.on(record)).isSameAs(failure);
+        verifyNoInteractions(stockCache);
     }
 
     private ConsumerRecord<String, String> record(UUID messageId, String payload) {

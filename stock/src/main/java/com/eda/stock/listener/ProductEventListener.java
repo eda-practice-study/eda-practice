@@ -3,6 +3,7 @@ package com.eda.stock.listener;
 import com.eda.common.message.Message;
 import com.eda.common.message.MessageHeader;
 import com.eda.common.message.product.ProductCreated;
+import com.eda.stock.cache.StockCache;
 import com.eda.stock.exception.InvalidProductEventException;
 import com.eda.stock.service.StockService;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +20,7 @@ public class ProductEventListener {
 
     private final JsonMapper jsonMapper;
     private final StockService stockService;
+    private final StockCache stockCache;
 
     @KafkaListener(id = "stock-product-events", topics = "product.events", groupId = "stock-service")
     public void on(ConsumerRecord<String, String> record) {
@@ -39,6 +41,10 @@ public class ProductEventListener {
         } catch (RuntimeException ex) {
             throw new InvalidProductEventException("상품 생성 이벤트 형식이 올바르지 않습니다", ex);
         }
-        stockService.createFor(message.messageId(), message.payload().productId());
+        Long productId = message.payload().productId();
+        boolean created = stockService.createFor(message.messageId(), productId);
+        if (created) {
+            stockCache.initialize(productId);
+        }
     }
 }

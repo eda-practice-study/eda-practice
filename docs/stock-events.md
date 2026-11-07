@@ -14,6 +14,14 @@ key와 value는 문자열로 수신하고, 공통 `Message.from()`으로 이벤�
   제약 위반이 발생한 요청은 롤백되고 새 트랜잭션에서 재시도된다.
 - DB 커밋 후 오프셋 커밋 전 종료되면 재수신될 수 있지만, 처리 이력을 통해 중복 변경을 막는다.
 
+## Redis 초기 재고
+
+- 서비스는 신규 Stock을 만들었으면 `true`, 중복 메시지나 기존 Stock이면 `false`를 반환한다.
+- 리스너는 신규 Stock의 DB 커밋 이후에만 Redis에 수량 0을 `SET NX`로 추가한다.
+- Redis 실패는 로그로 남기고 DB 커밋과 Kafka 처리 성공을 유지한다. Redis 실패로 Kafka 재시도나 DLT를 발생시키지 않는다.
+- Redis 초기화 누락은 중복 이벤트로 복구하지 않는다. 조회·재고 변경 시의 복구 정책은 후속 과제다.
+- [핵심 결정과 감수한 위험](stock-redis-initialization.md)에 커밋 경계, 타임아웃, 유실 구간과 향후 복구 제약을 정리했다.
+
 ## ACK와 실패 처리
 
 - `enable-auto-commit=false`, `ack-mode=batch`를 사용한다. 리스너는 한 건씩 동기 처리한다.
@@ -34,4 +42,4 @@ key와 value는 문자열로 수신하고, 공통 `Message.from()`으로 이벤�
 
 `./gradlew :stock:test :product:test`로 검증한다.
 stock의 PostgreSQL 17 Testcontainers 테스트에는 실행 중인 Docker가 필요하며, Docker가 없을 때 자동으로 건너뛰지 않는다.
-Kafka 통합 테스트는 Embedded Kafka를 사용한다.
+Kafka 통합 테스트는 Embedded Kafka와 실제 Valkey 컨테이너를 사용한다.
