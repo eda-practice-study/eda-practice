@@ -32,6 +32,16 @@ public class ProductEventListener {
             return;
         }
 
+        Message<ProductCreated> message = getProductCreatedMessage(record);
+
+        Long productId = message.payload().productId();
+        boolean created = stockService.createFor(message.messageId(), productId);
+        if (created) {
+            stockCache.initialize(productId);
+        }
+    }
+
+    private Message<ProductCreated> getProductCreatedMessage(ConsumerRecord<String, String> record) {
         Message<ProductCreated> message;
         try {
             message = Message.from(record, ProductCreated.class, jsonMapper);
@@ -41,10 +51,6 @@ public class ProductEventListener {
         } catch (RuntimeException ex) {
             throw new InvalidProductEventException("상품 생성 이벤트 형식이 올바르지 않습니다", ex);
         }
-        Long productId = message.payload().productId();
-        boolean created = stockService.createFor(message.messageId(), productId);
-        if (created) {
-            stockCache.initialize(productId);
-        }
+        return message;
     }
 }
