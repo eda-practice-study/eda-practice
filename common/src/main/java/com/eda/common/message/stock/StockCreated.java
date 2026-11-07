@@ -1,4 +1,4 @@
-package com.eda.common.message;
+package com.eda.common.message.stock;
 
 public record StockCreated(
         Long stockId,

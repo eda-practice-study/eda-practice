@@ -1,7 +1,7 @@
 package com.eda.stock.event;
 
 import com.eda.common.message.Message;
-import com.eda.common.message.ProductCreated;
+import com.eda.common.message.product.ProductCreated;
 import com.eda.stock.application.StockService;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerRecord;

@@ -1,6 +1,6 @@
 package com.eda.stock.application;
 
-import com.eda.common.message.StockCreated;
+import com.eda.common.message.stock.StockCreated;
 import com.eda.common.outbox.OutboxWriter;
 import com.eda.stock.domain.Stock;
 import com.eda.stock.domain.StockRepository;

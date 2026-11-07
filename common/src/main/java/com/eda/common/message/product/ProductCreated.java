@@ -1,4 +1,4 @@
-package com.eda.common.message;
+package com.eda.common.message.product;
 
 import java.math.BigDecimal;
 

@@ -1,6 +1,6 @@
 package com.eda.order.application;
 
-import com.eda.common.message.ProductSnapshotCreated;
+import com.eda.common.message.order.ProductSnapshotCreated;
 import com.eda.common.outbox.OutboxWriter;
 import com.eda.order.domain.ProductSnapshot;
 import com.eda.order.infrastructure.ProductSnapshotRepository;
@@ -37,7 +37,7 @@ public class ProductSnapshotService {
                         productSnapshot.getId(),
                         productSnapshot.getProductId(),
                         productSnapshot.getName(),
-                        productSnapshot.getPrice()
-                ));
+                        productSnapshot.getPrice())
+        );
     }
 }

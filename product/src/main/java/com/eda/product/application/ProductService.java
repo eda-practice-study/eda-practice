@@ -2,7 +2,7 @@ package com.eda.product.application;
 
 import com.eda.common.exception.BusinessException;
 import com.eda.common.exception.ErrorCode;
-import com.eda.common.message.ProductCreated;
+import com.eda.common.message.product.ProductCreated;
 import com.eda.common.outbox.OutboxWriter;
 import com.eda.product.api.dto.CreateProductRequest;
 import com.eda.product.api.dto.CreateProductResponse;

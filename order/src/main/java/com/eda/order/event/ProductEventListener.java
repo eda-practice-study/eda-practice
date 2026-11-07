@@ -1,7 +1,7 @@
 package com.eda.order.event;
 
 import com.eda.common.message.Message;
-import com.eda.common.message.ProductCreated;
+import com.eda.common.message.product.ProductCreated;
 import com.eda.order.application.ProductSnapshotService;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
