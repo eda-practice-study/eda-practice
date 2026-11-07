@@ -4,6 +4,9 @@
 
 ```mermaid
 flowchart LR
+    SI[재고 증가 API] --> SIDB[stock DB와 멱등성 이력 및 Outbox]
+    SIDB --> SR
+    SI --> SIR[DB 커밋 후 Redis 증가 시도]
     API[상품 등록 API] --> PDB[product DB와 Outbox]
     PDB --> PR[product OutboxRelay]
     PR --> PE[product.events: ProductCreated]
@@ -11,7 +14,7 @@ flowchart LR
     PE --> OL[order-service]
     SL --> SDB[재고와 처리 이력 및 Outbox]
     SDB --> SR[stock OutboxRelay]
-    SR --> SE[stock.events: StockCreated]
+    SR --> SE[stock.events: StockCreated와 StockIncreased]
     SL --> R[DB 커밋 후 Redis 초기화 시도]
     OL --> ODB[스냅샷과 처리 이력 및 Outbox]
     ODB --> OR[order OutboxRelay]
@@ -28,9 +31,12 @@ notification은 `notification-service` 그룹으로 모든 `*.events`를 별도�
 |---|---|---|---|
 | `ProductCreated` | product, `product.events` | `productId: Long`, `name: String`, `price: long` | 상품 ID 문자열 |
 | `StockCreated` | stock, `stock.events` | `productId: Long`, `quantity: int` | 상품 ID 문자열 |
+| `StockIncreased` | stock, `stock.events` | `productId: Long`, `increasedQuantity: int`, `quantity: int` | 상품 ID 문자열 |
 | `ProductSnapshotCreated` | order, `order.events` | `productId: Long`, `name: String`, `price: long` | 상품 ID 문자열 |
 
 가격은 원 단위 정수다. `StockCreated`의 초기 수량은 0이다.
+`StockIncreased`의 `increasedQuantity`는 해당 요청의 증가량이고 `quantity`는 증가 후 DB 실재고다.
+이벤트는 DB 증가가 확정됐다는 뜻이며 Redis 반영 완료를 의미하지 않는다.
 본문 record는 [common 메시지 패키지](../../common/src/main/java/com/eda/common/message)에 둔다.
 엔티티 전체나 메시지 wrapper를 JSON 본문으로 보내지 않는다.
 

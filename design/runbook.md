@@ -128,6 +128,56 @@ Kafka UI에서는 다음 토픽의 key와 본문 및 헤더를 확인한다.
 
 notification 로그도 수신 사실을 확인하는 보조 수단이다. 로그만으로 DB 업무 성공이나 중복 없는 알림 처리를 입증하지는 않는다.
 
+## 재고 증가 확인
+
+재고가 이미 생성된 상품 ID를 사용한다. 한 번의 증가 의도에는 같은 키를 사용하고,
+새 증가 요청에는 새 키를 사용한다.
+
+```bash
+curl -i -X POST http://localhost:8084/api/stocks/1/increase \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: stock-increase-example-1' \
+  -d '{"quantity":100}'
+```
+
+같은 키를 재전송하면 요청 내용에 관계없이 `409 DUPLICATE_STOCK_INCREASE_REQUEST`를 반환하고 재고와 이벤트는 추가하지 않는다.
+Redis 호출이 실패하면 DB 수량은 증가하고 `availableQuantity`는 `null`이다.
+중복 키 오류는 DB 증가가 이미 커밋됐다는 뜻이며 Redis 반영 여부나 최초 응답 수신 여부를 알려주지 않는다.
+응답을 받지 못했다는 이유로 새 키를 사용하면 다시 증가할 수 있다. 현재 자동 재처리나 대사는 없다.
+
+```sql
+SELECT product_id, quantity, version FROM stock.stock WHERE product_id = 1;
+SELECT idempotency_key, product_id, created_at
+FROM stock.stock_increase_request WHERE idempotency_key = 'stock-increase-example-1';
+SELECT message_type, payload, status FROM stock.outbox_message
+WHERE message_key = '1' AND message_type = 'StockIncreased';
+```
+
+현재 개발 환경에서는 Hibernate `ddl-auto=update`로 버전 컬럼과 멱등성 이력 테이블을 생성한다.
+버전 컬럼은 기본값 0과 NOT NULL을 지정한다. 이전에 nullable 버전 컬럼을 만든 환경은
+애플리케이션을 중지한 상태에서 NULL 값을 0으로 보정하고 제약을 적용한 뒤 재시작한다.
+운영용 마이그레이션 도구는 아직 없다.
+
+```sql
+ALTER TABLE stock.stock ADD COLUMN IF NOT EXISTS version bigint NOT NULL DEFAULT 0;
+UPDATE stock.stock SET version = 0 WHERE version IS NULL;
+ALTER TABLE stock.stock ALTER COLUMN version SET DEFAULT 0;
+ALTER TABLE stock.stock ALTER COLUMN version SET NOT NULL;
+```
+
+이전 응답 저장 방식의 스키마가 있다면, 애플리케이션을 중지하고 아래 컬럼을 제거한 뒤 새 버전을 실행한다.
+Hibernate `ddl-auto=update`는 삭제된 필드를 테이블에서 자동 제거하지 않으므로,
+기존 NOT NULL 컬럼이 남으면 새 요청 이력 INSERT가 실패할 수 있다.
+기존 멱등성 키와 상품 ID는 유지하며 이력 자체를 삭제하지 않는다. 아래 변경은 자동 실행되지 않는다.
+
+```sql
+ALTER TABLE stock.stock_increase_request
+    DROP COLUMN IF EXISTS increased_quantity,
+    DROP COLUMN IF EXISTS quantity,
+    DROP COLUMN IF EXISTS available_quantity,
+    DROP COLUMN IF EXISTS completed;
+```
+
 ## 실패 위치 확인
 
 | 관측한 상태 | 확인할 부분 |
@@ -165,3 +215,9 @@ PostgreSQL 17과 Valkey 통합 테스트에는 Docker가 필요하고 Kafka는 E
 2026-11-07 문서화 이전 작업에서는 위 네 모듈 전체 테스트와 후속 Kafka 설정 및 통합 테스트 재검증이 성공했다.
 이 기록은 이후의 미커밋 변경이나 문서화 이후 코드까지 검증했다는 뜻이 아니다.
 이번 문서 정리에서는 상대 링크와 문서 구조 및 Git 변경 범위를 검증하며 애플리케이션 테스트는 재실행하지 않는다.
+
+2026-11-08 재고 증가 API 작업에서는 `./gradlew :stock:test :common:test :product:test`가 통과했다.
+추가 통합 테스트는 PostgreSQL의 증가 트랜잭션 롤백과 낙관적 락 충돌,
+Valkey의 실제 증가와 응답 유실 모사, Embedded Kafka의 `StockIncreased` 발행을 확인한다.
+네트워크 응답 유실은 테스트에서 증가 명령 실행 후 타임아웃 예외를 주입해 모사하며,
+실제 네트워크 단절이나 Redis 데이터 유실 복구를 검증한 것은 아니다.
