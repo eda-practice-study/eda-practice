@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -33,6 +34,8 @@ public class Stock {
     private int quantity;
 
     @Version
+    @Column(nullable = false)
+    @ColumnDefault("0")
     private Long version;
 
     @CreationTimestamp
