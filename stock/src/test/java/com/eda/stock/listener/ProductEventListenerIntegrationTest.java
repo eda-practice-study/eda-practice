@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.eda.common.message.MessageHeader;
+import com.eda.common.outbox.OutboxRepository;
+import com.eda.common.outbox.OutboxStatus;
 import com.eda.stock.infra.StockCache;
 import com.eda.stock.domain.ProcessedMessageRepository;
 import com.eda.stock.domain.StockRepository;
@@ -77,6 +79,8 @@ class ProductEventListenerIntegrationTest {
     private StockRepository stockRepository;
     @Autowired
     private ProcessedMessageRepository processedMessageRepository;
+    @Autowired
+    private OutboxRepository outboxRepository;
     @Autowired
     private EmbeddedKafkaBroker broker;
     @MockitoSpyBean
@@ -151,6 +155,12 @@ class ProductEventListenerIntegrationTest {
         assertThat(stockRepository.findByProductId(108L).orElseThrow().getQuantity()).isZero();
         assertThat(processedMessageRepository.existsById(messageId)).isTrue();
         verify(stockService, times(1)).createFor(messageId, 108L);
+        var events = outboxRepository.findAll().stream()
+                .filter(event -> event.getMessageKey().equals("108") && event.getTopic().equals("stock.events"))
+                .toList();
+        assertThat(events).hasSize(1);
+        assertThat(events.getFirst().getMessageType()).isEqualTo("StockCreated");
+        assertThat(events.getFirst().getStatus()).isEqualTo(OutboxStatus.PENDING);
         verify(values, times(1)).setIfAbsent("stock:available:108", "0");
         verify(recoverer, never()).accept(any(), any(), any());
     }

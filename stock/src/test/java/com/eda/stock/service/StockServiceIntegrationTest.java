@@ -2,6 +2,9 @@ package com.eda.stock.service;
 
 import static org.assertj.core.api.Assertions.*;
 
+import com.eda.common.message.stock.StockCreated;
+import com.eda.common.outbox.OutboxRepository;
+import com.eda.common.outbox.OutboxStatus;
 import com.eda.stock.domain.ProcessedMessageRepository;
 import com.eda.stock.domain.StockRepository;
 import java.util.UUID;
@@ -23,6 +26,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import tools.jackson.databind.json.JsonMapper;
 
 @Testcontainers
 @DirtiesContext
@@ -51,15 +55,20 @@ class StockServiceIntegrationTest {
     private ProcessedMessageRepository processedMessageRepository;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private OutboxRepository outboxRepository;
+    @Autowired
+    private JsonMapper jsonMapper;
 
     @BeforeEach
     void cleanDatabase() {
+        outboxRepository.deleteAll();
         processedMessageRepository.deleteAll();
         stockRepository.deleteAll();
     }
 
     @Test
-    @DisplayName("재고와 처리 이력을 함께 커밋하고 재수신 시 기존 수량을 보존한다")
+    @DisplayName("재고와 처리 이력 및 이벤트를 함께 커밋하고 재수신 시 이벤트를 추가하지 않는다")
     void createAndRedeliver() {
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
@@ -78,6 +87,15 @@ class StockServiceIntegrationTest {
         assertThat(stockRepository.count()).isEqualTo(1);
         assertThat(stockRepository.findByProductId(1L).orElseThrow().getQuantity()).isEqualTo(10);
         assertThat(processedMessageRepository.count()).isEqualTo(2);
+        var outbox = outboxRepository.findAll();
+        assertThat(outbox).hasSize(1);
+        assertThat(outbox.getFirst().getTopic()).isEqualTo("stock.events");
+        assertThat(outbox.getFirst().getMessageKey()).isEqualTo("1");
+        assertThat(outbox.getFirst().getMessageType()).isEqualTo("StockCreated");
+        assertThat(outbox.getFirst().getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(outbox.getFirst().getMessageId()).isNotNull().isNotEqualTo(first);
+        assertThat(jsonMapper.readValue(outbox.getFirst().getPayload(), StockCreated.class))
+                .isEqualTo(new StockCreated(1L, 0));
     }
 
     @Test
@@ -90,6 +108,7 @@ class StockServiceIntegrationTest {
                     .isInstanceOf(DataIntegrityViolationException.class);
             assertThat(processedMessageRepository.existsById(messageId)).isFalse();
             assertThat(stockRepository.existsByProductId(2L)).isFalse();
+            assertThat(outboxRepository.count()).isZero();
         } finally {
             jdbcTemplate.execute("alter table stock.stock drop constraint test_reject_stock");
         }
@@ -98,6 +117,29 @@ class StockServiceIntegrationTest {
 
         assertThat(processedMessageRepository.existsById(messageId)).isTrue();
         assertThat(stockRepository.findByProductId(2L).orElseThrow().getQuantity()).isZero();
+        assertThat(outboxRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Outbox INSERT가 실패하면 재고와 처리 이력도 롤백하고 재시도할 수 있다")
+    void outboxFailureRollsBackAndRetries() {
+        UUID messageId = UUID.randomUUID();
+        jdbcTemplate.execute("alter table stock.outbox_message add constraint test_reject_event check (topic <> 'stock.events')");
+        try {
+            assertThatThrownBy(() -> stockService.createFor(messageId, 4L))
+                    .isInstanceOf(DataIntegrityViolationException.class);
+            assertThat(processedMessageRepository.existsById(messageId)).isFalse();
+            assertThat(stockRepository.existsByProductId(4L)).isFalse();
+            assertThat(outboxRepository.count()).isZero();
+        } finally {
+            jdbcTemplate.execute("alter table stock.outbox_message drop constraint test_reject_event");
+        }
+
+        assertThat(stockService.createFor(messageId, 4L)).isTrue();
+
+        assertThat(processedMessageRepository.existsById(messageId)).isTrue();
+        assertThat(stockRepository.findByProductId(4L).orElseThrow().getQuantity()).isZero();
+        assertThat(outboxRepository.count()).isEqualTo(1);
     }
 
     @ParameterizedTest
@@ -126,5 +168,6 @@ class StockServiceIntegrationTest {
         assertThat(stockRepository.count()).isEqualTo(1);
         assertThat(stockRepository.findByProductId(3L).orElseThrow().getQuantity()).isZero();
         assertThat(processedMessageRepository.count()).isEqualTo(sameMessageId ? 1 : 2);
+        assertThat(outboxRepository.count()).isEqualTo(1);
     }
 }

@@ -2,7 +2,7 @@
 
 ## 목표와 범위
 
-`ProductCreated`를 소비하면 DB에 수량 0인 Stock과 처리 이력을 저장한다.
+`ProductCreated`를 소비하면 DB에 수량 0인 Stock과 처리 이력, `StockCreated` 이벤트의 Outbox를 같은 트랜잭션으로 저장한다.
 신규 Stock을 만든 경우에만 DB 커밋 이후 Redis에 초기 가용 재고를 추가한다.
 Redis 장애 때문에 성공한 DB 저장을 롤백하거나 해당 이벤트를 Kafka에서 재시도하지 않는다.
 DB 자체의 장애와 저장 실패에는 기존 재시도·DLT 정책을 적용한다.
@@ -18,6 +18,7 @@ ProductEventListener
       → 처리 이력 확인
       → 미처리 메시지의 이력 저장
       → 신규 상품이면 Stock(quantity=0) 저장
+      → 신규 Stock의 StockCreated 이벤트를 Outbox에 저장
       → DB 트랜잭션 커밋
   → 신규 Stock을 만든 경우 StockCache.initialize(productId)
       → SET stock:available:{productId} 0 NX
@@ -25,6 +26,9 @@ ProductEventListener
   → 리스너 정상 반환
   → 기존 BATCH ACK 정책으로 오프셋 커밋
 ```
+
+별도로 OutboxRelay가 커밋된 이벤트를 `stock.events`로 발행한다. Redis 초기화와 Relay 사이에는 순서 보장이 없다.
+Redis 반영 실패에도 재고 생성 이벤트는 발행된다. `StockCreated`는 Redis 준비 완료를 보장하지 않는다.
 
 키 표기의 `{productId}`는 설명용 자리표시자다. 실제 키 예시는 `stock:available:42`다.
 
