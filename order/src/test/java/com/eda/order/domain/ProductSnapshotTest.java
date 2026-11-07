@@ -11,7 +11,7 @@ class ProductSnapshotTest {
 
     @Test
     @DisplayName("스냅샷으로 주문 항목을 만들면 상품명과 단가가 채워진다")
-    void toLineItem() {
+    void toLineItem_shouldCopyProduct_whenSnapshotAvailable() {
         // given
         ProductSnapshot snapshot = ProductSnapshot.of(1L, "키보드", BigDecimal.valueOf(30000));
 
@@ -23,10 +23,15 @@ class ProductSnapshotTest {
     }
 
     @Test
-    @DisplayName("필수 값이 없으면 생성에 실패한다")
-    void failToCreateWithoutRequired() {
+    @DisplayName("상품 ID가 없으면 스냅샷을 생성하지 못한다")
+    void of_shouldFail_whenProductIdMissing() {
         assertThatThrownBy(() -> ProductSnapshot.of(null, "키보드", BigDecimal.TEN))
                 .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+    }
+
+    @Test
+    @DisplayName("상품명이 공백이면 스냅샷을 생성하지 못한다")
+    void of_shouldFail_whenNameBlank() {
         assertThatThrownBy(() -> ProductSnapshot.of(1L, " ", BigDecimal.TEN))
                 .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
     }
