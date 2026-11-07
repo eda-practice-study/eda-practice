@@ -18,17 +18,19 @@ public class StockService {
     private final ProcessedMessageRepository processedMessageRepository;
 
     @Transactional
-    public void createFor(UUID messageId, Long productId) {
+    public boolean createFor(UUID messageId, Long productId) {
         if (messageId == null || productId == null || productId <= 0) {
             throw new InvalidProductEventException("messageId와 양수인 productId가 필요합니다");
         }
         if (processedMessageRepository.existsById(messageId)) {
-            return;
+            return false;
         }
 
         processedMessageRepository.saveAndFlush(new ProcessedMessage(messageId));
-        if (!stockRepository.existsByProductId(productId)) {
-            stockRepository.save(Stock.createFor(productId));
+        if (stockRepository.existsByProductId(productId)) {
+            return false;
         }
+        stockRepository.save(Stock.createFor(productId));
+        return true;
     }
 }

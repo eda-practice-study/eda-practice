@@ -37,7 +37,7 @@ class StockServiceTest {
     void create() {
         UUID messageId = UUID.randomUUID();
 
-        stockService.createFor(messageId, 1L);
+        boolean created = stockService.createFor(messageId, 1L);
 
         var history = ArgumentCaptor.forClass(ProcessedMessage.class);
         var stock = ArgumentCaptor.forClass(Stock.class);
@@ -46,6 +46,7 @@ class StockServiceTest {
         order.verify(processedMessageRepository).saveAndFlush(history.capture());
         order.verify(stockRepository).existsByProductId(1L);
         order.verify(stockRepository).save(stock.capture());
+        assertThat(created).isTrue();
         assertThat(history.getValue().getMessageId()).isEqualTo(messageId);
         assertThat(history.getValue().isNew()).isTrue();
         assertThat(stock.getValue().getProductId()).isEqualTo(1L);
@@ -58,8 +59,9 @@ class StockServiceTest {
         UUID messageId = UUID.randomUUID();
         when(processedMessageRepository.existsById(messageId)).thenReturn(true);
 
-        stockService.createFor(messageId, 1L);
+        boolean created = stockService.createFor(messageId, 1L);
 
+        assertThat(created).isFalse();
         verify(processedMessageRepository).existsById(messageId);
         verifyNoMoreInteractions(processedMessageRepository);
         verifyNoInteractions(stockRepository);
@@ -71,8 +73,9 @@ class StockServiceTest {
         UUID messageId = UUID.randomUUID();
         when(stockRepository.existsByProductId(1L)).thenReturn(true);
 
-        stockService.createFor(messageId, 1L);
+        boolean created = stockService.createFor(messageId, 1L);
 
+        assertThat(created).isFalse();
         verify(processedMessageRepository).saveAndFlush(any(ProcessedMessage.class));
         verify(stockRepository).existsByProductId(1L);
         verify(stockRepository, never()).save(any());
