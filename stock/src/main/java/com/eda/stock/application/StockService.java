@@ -4,24 +4,24 @@ import com.eda.common.message.StockCreated;
 import com.eda.common.outbox.OutboxWriter;
 import com.eda.stock.domain.Stock;
 import com.eda.stock.domain.StockRepository;
+import com.eda.stock.infrastructure.StockRedisRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
 public class StockService {
 
     private final StockRepository stockRepository;
+    private final StockRedisRepository stockRedisRepository;
     private final OutboxWriter outboxWriter;
 
     @Transactional
-    public void register(Long productId, String name, BigDecimal price) {
+    public void register(Long productId) {
 
         // 중복 발행 확인
-        if(stockRepository.existsByProductId(productId)) {
+        if (stockRepository.existsByProductId(productId)) {
             return;
         }
 
@@ -30,6 +30,7 @@ public class StockService {
         stockRepository.save(stock);
 
         // (Redis)
+        stockRedisRepository.initialize(productId);
 
         // 이벤트 발행
         outboxWriter.write(
