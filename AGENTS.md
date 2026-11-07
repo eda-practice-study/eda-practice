@@ -4,6 +4,12 @@
 새 작업을 시작하기 전에 읽고, 코드 작성과 커밋 검토에 적용한다.
 사용자가 현재 작업에서 명시한 지시가 있으면 그 지시를 우선한다.
 
+## 설계와 인수인계 문서
+
+- 새 작업을 시작하면 [design/README.md](design/README.md)에서 구현 상태와 읽는 순서를 확인하고, 관련 도메인 문서와 설계 결정 기록을 읽는다.
+- 개발 설계와 인수인계는 `design/`에서 관리한다. 스터디장이 관리하는 `docs/`는 명시적인 요청 없이 수정하지 않고 필요한 명세를 링크로 참조한다.
+- 동작이나 중요한 결정을 바꾸면 관련 문서를 갱신하되, 기록 방식은 [설계 결정 관리 규칙](design/adr/README.md)을 따른다. 문서 변경은 `docs` 커밋으로 분리한다.
+
 ## 커밋 단위
 
 - 한 커밋은 논리적으로 하나의 작업이어야 한다. 여러 변경을 한 커밋으로 묶고 제목에 나열하지 않는다.
@@ -61,6 +67,9 @@ InOrder order = inOrder(productSnapshotRepository, outboxWriter);
 - 가운데점처럼 일상적으로 잘 사용하지 않는 문장 기호나 모호한 축약 표현은 피한다.
 - 테스트 메서드 이름은 가급적 BDD 형식인 `{테스트할 메서드명}_should{기대한 결과}_when{테스트하는 조건}`을 사용한다.
 - 테스트 대상 메서드명을 그대로 앞에 쓰고, 기대 결과와 조건은 영어 camelCase로 표현한다. 예: `login_shouldSucceed_whenValidationSuccess`.
+- `should` 부분에는 테스트가 실제로 검증하는 결과를 명시한다. 무엇을 하는지 불분명한 `shouldPropagate`, `shouldReject` 같은 표현만 사용하지 않는다.
+- 예외 발생을 검증하면 `shouldThrowException`처럼 예외를 던진다는 의미를 드러낸다. 같은 예외 객체인지 검증하면 `shouldThrowSameException`, 특정 예외 타입을 검증하면 `shouldThrowValidationException`처럼 검증 내용에 맞게 구체화한다.
+- `@DisplayName`에도 같은 기대 결과를 표현한다. 예외 검증은 "예외를 던진다"라고 쓰고, 예외 검증만으로 실제 DB 롤백까지 검증한 것처럼 설명하지 않는다.
 - `when` 뒤의 조건은 보통 3단어 정도로 짧게 작성한다. 명사구와 주어-동사-목적어 형태의 절 모두 허용한다.
 - 조건의 단어 수는 엄격한 제한이 아니다. 의미를 흐리는 축약어를 만들거나 시나리오 설명 전체를 이름에 길게 넣지 않는다.
 - `create`, `receive` 같은 일반적인 동작명만으로 끝내지 않는다. 새로운 명명 규칙이 필요하면 먼저 상의한다.
@@ -70,12 +79,14 @@ InOrder order = inOrder(productSnapshotRepository, outboxWriter);
 - `createFor_shouldSkip_whenMessageAlreadyProcessed`
 - `createFor_shouldPreserveSnapshot_whenProductAlreadyExists`
 - `createFor_shouldRollback_whenOutboxSaveFails`
+- `createFor_shouldThrowSameException_whenHistorySaveFails`
 
 설명의 예:
 
 - `같은 상품 생성 메시지를 다시 받으면 스냅샷을 추가하지 않는다`
 - `다른 메시지로 기존 상품을 받아도 이름과 가격을 유지한다`
 - `스냅샷 생성 이벤트 저장에 실패하면 스냅샷과 처리 이력을 롤백한다`
+- `처리 이력 저장에 실패하면 같은 예외를 던지고 스냅샷과 Outbox를 저장하지 않는다`
 
 ## 테스트 시나리오와 중복
 
