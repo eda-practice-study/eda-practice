@@ -26,7 +26,7 @@ public class StockService {
             return false;
         }
 
-        processedMessageRepository.saveAndFlush(new ProcessedMessage(messageId));
+        processedMessageRepository.save(new ProcessedMessage(messageId));
         if (stockRepository.existsByProductId(productId)) {
             return false;
         }
