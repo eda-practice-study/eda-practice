@@ -14,19 +14,20 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.KafkaException;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 
 class StockKafkaConfigTest {
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
     @DisplayName("DLT 전송 결과가 실패이면 복구 성공으로 처리하지 않고 예외를 던진다")
-    void failedSendResult() {
+    void accept_shouldThrow_whenDltPublishFails() {
         KafkaTemplate<String, String> template = mock(KafkaTemplate.class);
         var producerFactory = new DefaultKafkaProducerFactory<String, String>(Map.of("bootstrap.servers", "localhost:9092"));
         when(template.getProducerFactory()).thenReturn(producerFactory);
         when(template.send(any(ProducerRecord.class)))
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("broker unavailable")));
-        var recoverer = new StockKafkaConfig().stockDeadLetterRecoverer(template);
+        DeadLetterPublishingRecoverer recoverer = new StockKafkaConfig().stockDeadLetterRecoverer(template);
         var record = new ConsumerRecord<String, String>("product.events", 0, 0L, "1", "payload");
 
         assertThatThrownBy(() -> recoverer.accept(record, null, new RuntimeException("processing failed")))

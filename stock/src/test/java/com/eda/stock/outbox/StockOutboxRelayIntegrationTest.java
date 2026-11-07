@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 
 import com.eda.common.message.Message;
 import com.eda.common.message.stock.StockCreated;
+import com.eda.common.outbox.OutboxMessage;
 import com.eda.common.outbox.OutboxRepository;
 import com.eda.common.outbox.OutboxStatus;
 import com.eda.stock.service.StockService;
@@ -14,6 +15,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.DisplayName;
@@ -44,17 +47,15 @@ class StockOutboxRelayIntegrationTest {
     private JsonMapper jsonMapper;
 
     @Test
-    @DisplayName("재고 생성 이벤트를 Relay가 Kafka로 발행하고 중복 수신 시 Outbox를 추가하지 않는다")
-    void publishStockCreated() {
+    @DisplayName("재고 생성이 커밋되면 Relay가 재고 생성 이벤트를 Kafka로 발행한다")
+    void relay_shouldPublishStockCreated_whenOutboxCommitted() {
         UUID incomingMessageId = UUID.randomUUID();
 
         assertThat(stockService.createFor(incomingMessageId, 1L)).isTrue();
-        assertThat(stockService.createFor(incomingMessageId, 1L)).isFalse();
-        assertThat(stockService.createFor(UUID.randomUUID(), 1L)).isFalse();
 
-        var outbox = outboxRepository.findAll();
+        List<OutboxMessage> outbox = outboxRepository.findAll();
         assertThat(outbox).hasSize(1);
-        var expected = outbox.getFirst();
+        OutboxMessage expected = outbox.getFirst();
         Map<String, Object> properties = Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, broker.getBrokersAsString(),
                 ConsumerConfig.GROUP_ID_CONFIG, "stock-created-test-" + UUID.randomUUID(),
@@ -64,8 +65,8 @@ class StockOutboxRelayIntegrationTest {
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         try (var consumer = new KafkaConsumer<String, String>(properties)) {
             consumer.subscribe(List.of("stock.events"));
-            var record = await().atMost(Duration.ofSeconds(15)).until(() -> {
-                var records = consumer.poll(Duration.ofMillis(200));
+            ConsumerRecord<String, String> record = await().atMost(Duration.ofSeconds(15)).until(() -> {
+                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(200));
                 return records.isEmpty() ? null : records.iterator().next();
             }, Objects::nonNull);
 
@@ -78,7 +79,7 @@ class StockOutboxRelayIntegrationTest {
         }
 
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            var published = outboxRepository.findById(expected.getId()).orElseThrow();
+            OutboxMessage published = outboxRepository.findById(expected.getId()).orElseThrow();
             assertThat(published.getStatus()).isEqualTo(OutboxStatus.PUBLISHED);
             assertThat(published.getPublishedAt()).isNotNull();
         });

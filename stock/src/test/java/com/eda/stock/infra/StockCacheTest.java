@@ -25,7 +25,7 @@ class StockCacheTest {
 
     @Test
     @DisplayName("새 상품의 Redis 수량을 덮어쓰기 없이 0으로 초기화한다")
-    void initialize() {
+    void initialize_shouldSetZero_whenKeyMissing() {
         when(redisTemplate.opsForValue()).thenReturn(values);
         when(values.setIfAbsent("stock:available:1", "0")).thenReturn(true);
 
@@ -37,7 +37,7 @@ class StockCacheTest {
 
     @Test
     @DisplayName("기존 키로 초기화가 거절되어도 값을 덮어쓰지 않는다")
-    void existingKey() {
+    void initialize_shouldPreserveValue_whenKeyAlreadyExists() {
         when(redisTemplate.opsForValue()).thenReturn(values);
         when(values.setIfAbsent("stock:available:1", "0")).thenReturn(false);
 
@@ -49,7 +49,7 @@ class StockCacheTest {
 
     @Test
     @DisplayName("Redis 연결 실패는 리스너로 전파하지 않는다")
-    void connectionFailure() {
+    void initialize_shouldReturnNormally_whenRedisConnectionFails() {
         when(redisTemplate.opsForValue()).thenReturn(values);
         when(values.setIfAbsent("stock:available:1", "0"))
                 .thenThrow(new RedisConnectionFailureException("Redis unavailable"));

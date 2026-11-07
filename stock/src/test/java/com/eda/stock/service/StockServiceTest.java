@@ -19,6 +19,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,15 +39,15 @@ class StockServiceTest {
 
     @Test
     @DisplayName("처리 이력과 수량이 0인 재고를 저장하고 상품 ID를 키로 생성 이벤트를 기록한다")
-    void create() {
+    void createFor_shouldStoreEvent_whenProductNew() {
         UUID messageId = UUID.randomUUID();
         when(stockRepository.save(any(Stock.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         boolean created = stockService.createFor(messageId, 1L);
 
-        var history = ArgumentCaptor.forClass(ProcessedMessage.class);
-        var stock = ArgumentCaptor.forClass(Stock.class);
-        var order = inOrder(processedMessageRepository, stockRepository, outboxWriter);
+        ArgumentCaptor<ProcessedMessage> history = ArgumentCaptor.forClass(ProcessedMessage.class);
+        ArgumentCaptor<Stock> stock = ArgumentCaptor.forClass(Stock.class);
+        InOrder order = inOrder(processedMessageRepository, stockRepository, outboxWriter);
         order.verify(processedMessageRepository).existsById(messageId);
         order.verify(processedMessageRepository).save(history.capture());
         order.verify(stockRepository).existsByProductId(1L);
@@ -61,7 +62,7 @@ class StockServiceTest {
 
     @Test
     @DisplayName("이미 처리한 메시지는 재고에 접근하지 않고 건너뛴다")
-    void duplicateMessage() {
+    void createFor_shouldSkip_whenMessageAlreadyProcessed() {
         UUID messageId = UUID.randomUUID();
         when(processedMessageRepository.existsById(messageId)).thenReturn(true);
 
@@ -75,7 +76,7 @@ class StockServiceTest {
 
     @Test
     @DisplayName("새 메시지라도 이미 존재하는 상품 재고를 덮어쓰지 않는다")
-    void existingStock() {
+    void createFor_shouldPreserveStock_whenProductAlreadyExists() {
         UUID messageId = UUID.randomUUID();
         when(stockRepository.existsByProductId(1L)).thenReturn(true);
 
@@ -92,7 +93,7 @@ class StockServiceTest {
     @NullSource
     @ValueSource(longs = {0, -1})
     @DisplayName("상품 ID가 없거나 양수가 아니면 저장하지 않는다")
-    void invalidProductId(Long productId) {
+    void createFor_shouldReject_whenProductIdInvalid(Long productId) {
         assertThatThrownBy(() -> stockService.createFor(UUID.randomUUID(), productId))
                 .isInstanceOf(InvalidProductEventException.class);
         verifyNoInteractions(stockRepository, processedMessageRepository, outboxWriter);
@@ -100,7 +101,7 @@ class StockServiceTest {
 
     @Test
     @DisplayName("메시지 ID가 없으면 저장하지 않는다")
-    void missingMessageId() {
+    void createFor_shouldReject_whenMessageIdMissing() {
         assertThatThrownBy(() -> stockService.createFor(null, 1L))
                 .isInstanceOf(InvalidProductEventException.class);
         verifyNoInteractions(stockRepository, processedMessageRepository, outboxWriter);
@@ -108,7 +109,7 @@ class StockServiceTest {
 
     @Test
     @DisplayName("이력 저장 중 동시 중복이 감지되면 재시도할 수 있도록 예외를 전파한다")
-    void historyFailure() {
+    void createFor_shouldPropagate_whenHistorySaveFails() {
         var failure = new DataIntegrityViolationException("duplicate message");
         when(processedMessageRepository.save(any())).thenThrow(failure);
 
@@ -118,7 +119,7 @@ class StockServiceTest {
 
     @Test
     @DisplayName("재고 저장 실패는 이력과 함께 롤백되도록 예외를 전파한다")
-    void stockFailure() {
+    void createFor_shouldPropagate_whenStockSaveFails() {
         var failure = new DataIntegrityViolationException("stock insert failed");
         when(stockRepository.save(any())).thenThrow(failure);
 
@@ -129,7 +130,7 @@ class StockServiceTest {
 
     @Test
     @DisplayName("Outbox 기록 실패는 재고와 처리 이력이 함께 롤백되도록 전파한다")
-    void outboxFailure() {
+    void createFor_shouldPropagate_whenOutboxWriteFails() {
         when(stockRepository.save(any(Stock.class))).thenAnswer(invocation -> invocation.getArgument(0));
         var failure = new DataIntegrityViolationException("outbox insert failed");
         when(outboxWriter.write("stock.events", "1", new StockCreated(1L, 0))).thenThrow(failure);

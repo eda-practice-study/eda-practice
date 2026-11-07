@@ -3,26 +3,30 @@ package com.eda.stock.service;
 import static org.assertj.core.api.Assertions.*;
 
 import com.eda.common.message.stock.StockCreated;
+import com.eda.common.outbox.OutboxMessage;
 import com.eda.common.outbox.OutboxRepository;
 import com.eda.common.outbox.OutboxStatus;
+import com.eda.stock.domain.ProcessedMessage;
 import com.eda.stock.domain.ProcessedMessageRepository;
+import com.eda.stock.domain.Stock;
 import com.eda.stock.domain.StockRepository;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.annotation.DirtiesContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -68,39 +72,69 @@ class StockServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("재고와 처리 이력 및 이벤트를 함께 커밋하고 재수신 시 이벤트를 추가하지 않는다")
-    void createAndRedeliver() {
-        UUID first = UUID.randomUUID();
-        UUID second = UUID.randomUUID();
-        stockService.createFor(first, 1L);
-        var stock = stockRepository.findByProductId(1L).orElseThrow();
+    @DisplayName("새 상품이면 재고와 처리 이력 및 생성 이벤트를 함께 저장한다")
+    void createFor_shouldPersistEvent_whenProductNew() {
+        UUID messageId = UUID.randomUUID();
+
+        boolean created = stockService.createFor(messageId, 1L);
+
+        assertThat(created).isTrue();
+        Stock stock = stockRepository.findByProductId(1L).orElseThrow();
         assertThat(stock.getQuantity()).isZero();
-        var history = processedMessageRepository.findById(first).orElseThrow();
+        ProcessedMessage history = processedMessageRepository.findById(messageId).orElseThrow();
         assertThat(history.getProcessedAt()).isNotNull();
         assertThat(history.isNew()).isFalse();
+        List<OutboxMessage> messages = outboxRepository.findAll();
+        assertThat(messages).hasSize(1);
+        OutboxMessage message = messages.getFirst();
+        assertThat(message.getTopic()).isEqualTo("stock.events");
+        assertThat(message.getMessageKey()).isEqualTo("1");
+        assertThat(message.getMessageType()).isEqualTo("StockCreated");
+        assertThat(message.getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(message.getMessageId()).isNotNull().isNotEqualTo(messageId);
+        assertThat(jsonMapper.readValue(message.getPayload(), StockCreated.class)).isEqualTo(new StockCreated(1L, 0));
+    }
+
+    @Test
+    @DisplayName("같은 메시지를 다시 받으면 기존 재고 수량과 생성 이벤트를 유지한다")
+    void createFor_shouldSkip_whenMessageAlreadyProcessed() {
+        UUID messageId = UUID.randomUUID();
+        stockService.createFor(messageId, 1L);
+        Stock stock = stockRepository.findByProductId(1L).orElseThrow();
         stock.increase(10);
         stockRepository.saveAndFlush(stock);
 
-        stockService.createFor(first, 1L);
-        stockService.createFor(second, 1L);
+        boolean created = stockService.createFor(messageId, 1L);
 
+        assertThat(created).isFalse();
         assertThat(stockRepository.count()).isEqualTo(1);
         assertThat(stockRepository.findByProductId(1L).orElseThrow().getQuantity()).isEqualTo(10);
+        assertThat(processedMessageRepository.count()).isEqualTo(1);
+        assertThat(outboxRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("다른 메시지로 기존 상품을 받으면 재고 수량을 보존하고 새 처리 이력만 저장한다")
+    void createFor_shouldPreserveStock_whenProductAlreadyExists() {
+        stockService.createFor(UUID.randomUUID(), 1L);
+        Stock stock = stockRepository.findByProductId(1L).orElseThrow();
+        stock.increase(10);
+        stockRepository.saveAndFlush(stock);
+        UUID messageId = UUID.randomUUID();
+
+        boolean created = stockService.createFor(messageId, 1L);
+
+        assertThat(created).isFalse();
+        assertThat(stockRepository.count()).isEqualTo(1);
+        assertThat(stockRepository.findByProductId(1L).orElseThrow().getQuantity()).isEqualTo(10);
+        assertThat(processedMessageRepository.existsById(messageId)).isTrue();
         assertThat(processedMessageRepository.count()).isEqualTo(2);
-        var outbox = outboxRepository.findAll();
-        assertThat(outbox).hasSize(1);
-        assertThat(outbox.getFirst().getTopic()).isEqualTo("stock.events");
-        assertThat(outbox.getFirst().getMessageKey()).isEqualTo("1");
-        assertThat(outbox.getFirst().getMessageType()).isEqualTo("StockCreated");
-        assertThat(outbox.getFirst().getStatus()).isEqualTo(OutboxStatus.PENDING);
-        assertThat(outbox.getFirst().getMessageId()).isNotNull().isNotEqualTo(first);
-        assertThat(jsonMapper.readValue(outbox.getFirst().getPayload(), StockCreated.class))
-                .isEqualTo(new StockCreated(1L, 0));
+        assertThat(outboxRepository.count()).isEqualTo(1);
     }
 
     @Test
     @DisplayName("재고 INSERT가 실패하면 먼저 저장한 처리 이력도 롤백하고 재시도할 수 있다")
-    void rollbackAndRetry() {
+    void createFor_shouldRecover_whenStockSaveRestored() {
         UUID messageId = UUID.randomUUID();
         jdbcTemplate.execute("alter table stock.stock add constraint test_reject_stock check (product_id <> 2)");
         try {
@@ -122,7 +156,7 @@ class StockServiceIntegrationTest {
 
     @Test
     @DisplayName("Outbox INSERT가 실패하면 재고와 처리 이력도 롤백하고 재시도할 수 있다")
-    void outboxFailureRollsBackAndRetries() {
+    void createFor_shouldRecover_whenOutboxSaveRestored() {
         UUID messageId = UUID.randomUUID();
         jdbcTemplate.execute("alter table stock.outbox_message add constraint test_reject_event check (topic <> 'stock.events')");
         try {
@@ -142,15 +176,14 @@ class StockServiceIntegrationTest {
         assertThat(outboxRepository.count()).isEqualTo(1);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    @DisplayName("같은 상품을 동시에 처리해도 유일 제약과 재시도로 재고 한 건만 생성한다")
-    void concurrentDelivery(boolean sameMessageId) throws Exception {
+    @Test
+    @DisplayName("같은 메시지를 동시에 받으면 한 건의 생성 이벤트만 저장한다")
+    void createFor_shouldCreateOnce_whenSameMessageConcurrent() throws Exception {
         UUID first = UUID.randomUUID();
-        UUID second = sameMessageId ? first : UUID.randomUUID();
+        UUID second = first;
         var barrier = new CyclicBarrier(2);
-        try (var executor = Executors.newFixedThreadPool(2)) {
-            var futures = java.util.stream.Stream.of(first, second).map(id -> executor.submit(() -> {
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            List<Future<Object>> futures = java.util.stream.Stream.of(first, second).map(id -> executor.submit(() -> {
                 barrier.await(10, TimeUnit.SECONDS);
                 try {
                     stockService.createFor(id, 3L);
@@ -160,14 +193,42 @@ class StockServiceIntegrationTest {
                 }
                 return null;
             })).toList();
-            for (var future : futures) {
+            for (Future<Object> future : futures) {
                 future.get(20, TimeUnit.SECONDS);
             }
         }
 
         assertThat(stockRepository.count()).isEqualTo(1);
         assertThat(stockRepository.findByProductId(3L).orElseThrow().getQuantity()).isZero();
-        assertThat(processedMessageRepository.count()).isEqualTo(sameMessageId ? 1 : 2);
+        assertThat(processedMessageRepository.count()).isEqualTo(1);
+        assertThat(outboxRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("서로 다른 메시지로 같은 상품을 동시에 받아도 한 건의 생성 이벤트만 저장한다")
+    void createFor_shouldCreateOnce_whenSameProductConcurrent() throws Exception {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        var barrier = new CyclicBarrier(2);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            List<Future<Object>> futures = java.util.stream.Stream.of(first, second).map(id -> executor.submit(() -> {
+                barrier.await(10, TimeUnit.SECONDS);
+                try {
+                    stockService.createFor(id, 3L);
+                } catch (DataIntegrityViolationException ex) {
+                    // 리스너의 재시도처럼 새 트랜잭션에서 다시 처리한다.
+                    stockService.createFor(id, 3L);
+                }
+                return null;
+            })).toList();
+            for (Future<Object> future : futures) {
+                future.get(20, TimeUnit.SECONDS);
+            }
+        }
+
+        assertThat(stockRepository.count()).isEqualTo(1);
+        assertThat(stockRepository.findByProductId(3L).orElseThrow().getQuantity()).isZero();
+        assertThat(processedMessageRepository.count()).isEqualTo(2);
         assertThat(outboxRepository.count()).isEqualTo(1);
     }
 }
