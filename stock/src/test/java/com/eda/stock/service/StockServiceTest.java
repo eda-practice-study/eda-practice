@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.eda.common.message.stock.StockCreated;
+import com.eda.common.outbox.OutboxWriter;
 import com.eda.stock.domain.ProcessedMessage;
 import com.eda.stock.domain.ProcessedMessageRepository;
 import com.eda.stock.domain.Stock;
@@ -29,23 +31,27 @@ class StockServiceTest {
     private StockRepository stockRepository;
     @Mock
     private ProcessedMessageRepository processedMessageRepository;
+    @Mock
+    private OutboxWriter outboxWriter;
     @InjectMocks
     private StockService stockService;
 
     @Test
-    @DisplayName("처리 이력을 저장한 뒤 수량이 0인 재고를 생성한다")
+    @DisplayName("처리 이력과 수량이 0인 재고를 저장하고 상품 ID를 키로 생성 이벤트를 기록한다")
     void create() {
         UUID messageId = UUID.randomUUID();
+        when(stockRepository.save(any(Stock.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         boolean created = stockService.createFor(messageId, 1L);
 
         var history = ArgumentCaptor.forClass(ProcessedMessage.class);
         var stock = ArgumentCaptor.forClass(Stock.class);
-        var order = inOrder(processedMessageRepository, stockRepository);
+        var order = inOrder(processedMessageRepository, stockRepository, outboxWriter);
         order.verify(processedMessageRepository).existsById(messageId);
-        order.verify(processedMessageRepository).saveAndFlush(history.capture());
+        order.verify(processedMessageRepository).save(history.capture());
         order.verify(stockRepository).existsByProductId(1L);
         order.verify(stockRepository).save(stock.capture());
+        order.verify(outboxWriter).write("stock.events", "1", new StockCreated(1L, 0));
         assertThat(created).isTrue();
         assertThat(history.getValue().getMessageId()).isEqualTo(messageId);
         assertThat(history.getValue().isNew()).isTrue();
@@ -64,7 +70,7 @@ class StockServiceTest {
         assertThat(created).isFalse();
         verify(processedMessageRepository).existsById(messageId);
         verifyNoMoreInteractions(processedMessageRepository);
-        verifyNoInteractions(stockRepository);
+        verifyNoInteractions(stockRepository, outboxWriter);
     }
 
     @Test
@@ -76,9 +82,10 @@ class StockServiceTest {
         boolean created = stockService.createFor(messageId, 1L);
 
         assertThat(created).isFalse();
-        verify(processedMessageRepository).saveAndFlush(any(ProcessedMessage.class));
+        verify(processedMessageRepository).save(any(ProcessedMessage.class));
         verify(stockRepository).existsByProductId(1L);
         verify(stockRepository, never()).save(any());
+        verifyNoInteractions(outboxWriter);
     }
 
     @ParameterizedTest
@@ -88,7 +95,7 @@ class StockServiceTest {
     void invalidProductId(Long productId) {
         assertThatThrownBy(() -> stockService.createFor(UUID.randomUUID(), productId))
                 .isInstanceOf(InvalidProductEventException.class);
-        verifyNoInteractions(stockRepository, processedMessageRepository);
+        verifyNoInteractions(stockRepository, processedMessageRepository, outboxWriter);
     }
 
     @Test
@@ -96,17 +103,17 @@ class StockServiceTest {
     void missingMessageId() {
         assertThatThrownBy(() -> stockService.createFor(null, 1L))
                 .isInstanceOf(InvalidProductEventException.class);
-        verifyNoInteractions(stockRepository, processedMessageRepository);
+        verifyNoInteractions(stockRepository, processedMessageRepository, outboxWriter);
     }
 
     @Test
     @DisplayName("이력 저장 중 동시 중복이 감지되면 재시도할 수 있도록 예외를 전파한다")
     void historyFailure() {
         var failure = new DataIntegrityViolationException("duplicate message");
-        when(processedMessageRepository.saveAndFlush(any())).thenThrow(failure);
+        when(processedMessageRepository.save(any())).thenThrow(failure);
 
         assertThatThrownBy(() -> stockService.createFor(UUID.randomUUID(), 1L)).isSameAs(failure);
-        verifyNoInteractions(stockRepository);
+        verifyNoInteractions(stockRepository, outboxWriter);
     }
 
     @Test
@@ -116,6 +123,20 @@ class StockServiceTest {
         when(stockRepository.save(any())).thenThrow(failure);
 
         assertThatThrownBy(() -> stockService.createFor(UUID.randomUUID(), 1L)).isSameAs(failure);
-        verify(processedMessageRepository).saveAndFlush(any());
+        verify(processedMessageRepository).save(any());
+        verifyNoInteractions(outboxWriter);
+    }
+
+    @Test
+    @DisplayName("Outbox 기록 실패는 재고와 처리 이력이 함께 롤백되도록 전파한다")
+    void outboxFailure() {
+        when(stockRepository.save(any(Stock.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        var failure = new DataIntegrityViolationException("outbox insert failed");
+        when(outboxWriter.write("stock.events", "1", new StockCreated(1L, 0))).thenThrow(failure);
+
+        assertThatThrownBy(() -> stockService.createFor(UUID.randomUUID(), 1L)).isSameAs(failure);
+
+        verify(processedMessageRepository).save(any());
+        verify(stockRepository).save(any());
     }
 }

@@ -1,5 +1,7 @@
 package com.eda.stock.service;
 
+import com.eda.common.message.stock.StockCreated;
+import com.eda.common.outbox.OutboxWriter;
 import com.eda.stock.domain.ProcessedMessage;
 import com.eda.stock.domain.ProcessedMessageRepository;
 import com.eda.stock.domain.Stock;
@@ -14,8 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class StockService {
 
+    private static final String STOCK_EVENTS_TOPIC = "stock.events";
+
     private final StockRepository stockRepository;
     private final ProcessedMessageRepository processedMessageRepository;
+    private final OutboxWriter outboxWriter;
 
     @Transactional
     public boolean createFor(UUID messageId, Long productId) {
@@ -30,7 +35,11 @@ public class StockService {
         if (stockRepository.existsByProductId(productId)) {
             return false;
         }
-        stockRepository.save(Stock.createFor(productId));
+        Stock stock = stockRepository.save(Stock.createFor(productId));
+        outboxWriter.write(
+                STOCK_EVENTS_TOPIC,
+                productId.toString(),
+                new StockCreated(stock.getProductId(), stock.getQuantity()));
         return true;
     }
 }
