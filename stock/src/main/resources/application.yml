@@ -4,7 +4,13 @@ server:
 spring:
   application:
     name: stock
+  data:
+    redis:
+      connect-timeout: 500ms
+      timeout: 500ms
   kafka:
+    consumer:
+      auto-offset-reset: earliest
     producer:
       acks: all
       properties:

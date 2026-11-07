@@ -25,7 +25,7 @@
 | 필드 | 출처 | 의미 |
 |------|------|------|
 | quantity | DB | 증가 후 실재고 |
-| availableQuantity | Redis | 증가 후 가용 재고. Redis 반영에 실패하면 `null` (DB 는 반영됨) |
+| availableQuantity | Redis | DB 커밋 후 Redis에 반영한 가용 재고. Redis 반영에 실패하면 `null`로 응답하며, Outbox 이벤트로 재반영할 수 있다. |
 
 **Error**
 
@@ -56,8 +56,8 @@
 | 필드 | 출처 | 의미 |
 |------|------|------|
 | quantity | DB | 실재고 |
-| availableQuantity | Redis | 가용 재고. 키가 없으면 `null` |
-| consistent | 계산 | `quantity == availableQuantity` 인지 |
+| availableQuantity | Redis | 가용 재고. 키가 없거나 버전이 뒤처지면 DB 스냅샷으로 복구한다. Redis에 연결할 수 없으면 `null` |
+| consistent | 계산 | 수량과 버전이 DB 스냅샷과 일치하는지 |
 
 **Error**: `404 STOCK_NOT_FOUND`
 
