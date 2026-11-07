@@ -48,7 +48,7 @@ class OutboxRelayIntegrationTest {
 
     @Test
     @DisplayName("트랜잭션 안에서 write 한 메시지를 relay 가 Kafka 로 보내고 PUBLISHED 로 바꾼다")
-    void relay() {
+    void relay_shouldPublish_whenOutboxCommitted() {
         // when
         Long id = new TransactionTemplate(transactionManager).execute(status ->
                 outboxWriter.write("outbox.relay.test", "k1", new SampleCreated(1)).getId());
@@ -67,7 +67,7 @@ class OutboxRelayIntegrationTest {
 
     @Test
     @DisplayName("트랜잭션 없이 write 를 호출하면 예외가 난다")
-    void requireTransaction() {
+    void write_shouldReject_whenTransactionMissing() {
         assertThatThrownBy(() -> outboxWriter.write("outbox.relay.test", "k1", new SampleCreated(1)))
                 .isInstanceOf(IllegalTransactionStateException.class);
     }

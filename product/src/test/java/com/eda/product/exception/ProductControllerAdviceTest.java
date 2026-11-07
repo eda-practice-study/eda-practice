@@ -35,7 +35,7 @@ class ProductControllerAdviceTest {
 
     @Test
     @DisplayName("상품명 유일 제약 위반은 공통 예외 처리기보다 우선하여 409로 응답한다")
-    void duplicateNameConstraint() throws Exception {
+    void handleDataIntegrityViolation_shouldReturnConflict_whenNameConstraintViolated() throws Exception {
         var constraint = new ConstraintViolationException(
                 "duplicate name", new SQLException("duplicate key", "23505"), "uk_product_name");
         var failure = new DataIntegrityViolationException("save failed", new RuntimeException(constraint));
@@ -52,7 +52,7 @@ class ProductControllerAdviceTest {
     @NullSource
     @ValueSource(strings = {"other_constraint"})
     @DisplayName("다른 제약 위반이나 제약 이름이 없는 오류는 500으로 응답한다")
-    void otherConstraint(String constraintName) throws Exception {
+    void handleDataIntegrityViolation_shouldReturnError_whenConstraintUnrecognized(String constraintName) throws Exception {
         var constraint = new ConstraintViolationException(
                 "constraint violation", new SQLException("constraint violation"), constraintName);
         when(productService.register(any(), any()))
@@ -67,7 +67,7 @@ class ProductControllerAdviceTest {
 
     @Test
     @DisplayName("원인 예외가 없는 무결성 오류는 500으로 응답한다")
-    void integrityViolationWithoutCause() throws Exception {
+    void handleDataIntegrityViolation_shouldReturnError_whenCauseMissing() throws Exception {
         when(productService.register(any(), any()))
                 .thenThrow(new DataIntegrityViolationException("unknown integrity error"));
 

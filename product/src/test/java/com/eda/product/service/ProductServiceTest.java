@@ -18,9 +18,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
-import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -43,7 +43,7 @@ class ProductServiceTest {
     @ParameterizedTest
     @ValueSource(strings = {"1", "1000000", "30000.00"})
     @DisplayName("상품을 저장한 뒤 상품 ID를 키로 생성 이벤트를 기록하고 저장된 상품을 반환한다")
-    void register(String price) {
+    void register_shouldStoreEvent_whenProductValid(String price) {
         LocalDateTime createdAt = LocalDateTime.of(2026, 11, 1, 12, 0);
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
             Product product = invocation.getArgument(0);
@@ -55,7 +55,7 @@ class ProductServiceTest {
         Product result = productService.register("키보드", new BigDecimal(price));
 
         ArgumentCaptor<Product> productCaptor = ArgumentCaptor.forClass(Product.class);
-        var inOrder = inOrder(productRepository, outboxWriter);
+        InOrder inOrder = inOrder(productRepository, outboxWriter);
         inOrder.verify(productRepository).existsByName("키보드");
         inOrder.verify(productRepository).save(productCaptor.capture());
         inOrder.verify(outboxWriter).write(
@@ -72,7 +72,7 @@ class ProductServiceTest {
     @NullAndEmptySource
     @ValueSource(strings = {" ", "\t"})
     @DisplayName("상품명이 없거나 공백이면 상품과 이벤트를 저장하지 않는다")
-    void invalidName(String name) {
+    void register_shouldReject_whenNameBlank(String name) {
         assertThatThrownBy(() -> productService.register(name, BigDecimal.TEN))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
@@ -81,7 +81,7 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("상품명이 100자를 초과하면 상품과 이벤트를 저장하지 않는다")
-    void nameTooLong() {
+    void register_shouldReject_whenNameTooLong() {
         String name = "가".repeat(101);
 
         assertThatThrownBy(() -> productService.register(name, BigDecimal.TEN))
@@ -91,11 +91,10 @@ class ProductServiceTest {
     }
 
     @ParameterizedTest
-    @NullSource
     @ValueSource(strings = {"0", "-1", "1000001", "100.5"})
-    @DisplayName("가격이 없거나 범위를 벗어나거나 소수면 상품과 이벤트를 저장하지 않는다")
-    void invalidPrice(String price) {
-        BigDecimal invalidPrice = price == null ? null : new BigDecimal(price);
+    @DisplayName("가격이 허용 범위를 벗어나면 상품과 이벤트를 저장하지 않는다")
+    void register_shouldReject_whenPriceInvalid(String price) {
+        BigDecimal invalidPrice = new BigDecimal(price);
 
         assertThatThrownBy(() -> productService.register("키보드", invalidPrice))
                 .isInstanceOf(BusinessException.class)
@@ -104,8 +103,17 @@ class ProductServiceTest {
     }
 
     @Test
+    @DisplayName("가격이 없으면 상품과 이벤트를 저장하지 않는다")
+    void register_shouldReject_whenPriceMissing() {
+        assertThatThrownBy(() -> productService.register("키보드", null))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+        verifyNoInteractions(productRepository, outboxWriter);
+    }
+
+    @Test
     @DisplayName("이미 존재하는 상품명이면 상품과 이벤트를 저장하지 않는다")
-    void duplicateName() {
+    void register_shouldReject_whenNameAlreadyExists() {
         when(productRepository.existsByName("키보드")).thenReturn(true);
 
         assertThatThrownBy(() -> productService.register("키보드", BigDecimal.TEN))
@@ -118,7 +126,7 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("사전 조회 후 발생한 무결성 오류는 예외 처리기로 전파한다")
-    void integrityViolationAfterNameCheck() {
+    void register_shouldPropagate_whenConstraintViolated() {
         var failure = new DataIntegrityViolationException("constraint violation");
         when(productRepository.save(any(Product.class))).thenThrow(failure);
 
@@ -129,7 +137,7 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("상품 저장이 실패하면 이벤트를 기록하지 않고 오류를 전파한다")
-    void productSaveFailure() {
+    void register_shouldPropagate_whenProductSaveFails() {
         var failure = new DataAccessResourceFailureException("database unavailable");
         when(productRepository.save(any(Product.class))).thenThrow(failure);
 
@@ -139,7 +147,7 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("이벤트 기록이 실패하면 트랜잭션이 롤백될 수 있도록 오류를 전파한다")
-    void outboxWriteFailure() {
+    void register_shouldPropagate_whenOutboxWriteFails() {
         Product savedProduct = Product.register("키보드", BigDecimal.TEN);
         ReflectionTestUtils.setField(savedProduct, "id", 1L);
         when(productRepository.save(any(Product.class))).thenReturn(savedProduct);

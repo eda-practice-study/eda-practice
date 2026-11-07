@@ -38,7 +38,7 @@ class ProductControllerTest {
 
     @Test
     @DisplayName("상품 등록 후 201과 Location 및 상품 정보를 응답한다")
-    void create() throws Exception {
+    void create_shouldReturnCreated_whenRequestValid() throws Exception {
         Product product = Product.register("키보드", BigDecimal.valueOf(30000));
         ReflectionTestUtils.setField(product, "id", 1L);
         ReflectionTestUtils.setField(product, "createdAt", LocalDateTime.of(2026, 11, 1, 12, 0));
@@ -58,43 +58,92 @@ class ProductControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "{}",
-            "{\"name\":\"키보드\"}",
-            "{\"price\":30000}",
-            "{\"name\":\" \",\"price\":30000}",
-            "{\"name\":\"키보드\",\"price\":null}",
-            "{\"name\":\"키보드\",\"price\":0}",
-            "{\"name\":\"키보드\",\"price\":1000001}",
-            "{\"name\":\"키보드\",\"price\":\"abc\"}",
-            "{",
-            ""
-    })
-    @DisplayName("필수값 누락, 범위 오류 및 잘못된 JSON은 서비스 호출 없이 400을 응답한다")
-    void invalidRequest(String body) throws Exception {
-        assertBadRequest(body);
+    @ValueSource(strings = {"{}", "{\"name\":\"키보드\"}", "{\"price\":30000}", "{\"name\":\"키보드\",\"price\":null}"})
+    @DisplayName("필수값이 없으면 서비스를 호출하지 않고 400을 응답한다")
+    void create_shouldReject_whenRequiredFieldMissing(String body) throws Exception {
+        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        verifyNoInteractions(productService);
+    }
+
+    @Test
+    @DisplayName("상품명이 공백이면 서비스를 호출하지 않고 400을 응답한다")
+    void create_shouldReject_whenNameBlank() throws Exception {
+        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\" \",\"price\":30000}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        verifyNoInteractions(productService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"name\":\"키보드\",\"price\":0}", "{\"name\":\"키보드\",\"price\":1000001}"})
+    @DisplayName("가격이 허용 범위를 벗어나면 서비스를 호출하지 않고 400을 응답한다")
+    void create_shouldReject_whenPriceOutsideRange(String body) throws Exception {
+        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        verifyNoInteractions(productService);
+    }
+
+    @Test
+    @DisplayName("가격을 숫자로 읽을 수 없으면 서비스를 호출하지 않고 400을 응답한다")
+    void create_shouldReject_whenPriceNotNumeric() throws Exception {
+        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"키보드\",\"price\":\"abc\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        verifyNoInteractions(productService);
+    }
+
+    @Test
+    @DisplayName("JSON 형식이 잘못되면 서비스를 호출하지 않고 400을 응답한다")
+    void create_shouldReject_whenJsonMalformed() throws Exception {
+        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        verifyNoInteractions(productService);
+    }
+
+    @Test
+    @DisplayName("본문이 없으면 서비스를 호출하지 않고 400을 응답한다")
+    void create_shouldReject_whenBodyMissing() throws Exception {
+        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
         verifyNoInteractions(productService);
     }
 
     @Test
     @DisplayName("상품명이 100자를 초과하면 400을 응답한다")
-    void nameTooLong() throws Exception {
-        assertBadRequest("{\"name\":\"" + "가".repeat(101) + "\",\"price\":30000}");
+    void create_shouldReject_whenNameTooLong() throws Exception {
+        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"" + "가".repeat(101) + "\",\"price\":30000}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
         verifyNoInteractions(productService);
     }
 
     @Test
     @DisplayName("도메인의 원 단위 정수 검증 오류를 400으로 응답한다")
-    void fractionalPrice() throws Exception {
+    void create_shouldReject_whenPriceFractional() throws Exception {
         when(productService.register(any(), any())).thenThrow(new BusinessException(ErrorCode.VALIDATION_ERROR));
 
-        assertBadRequest("{\"name\":\"키보드\",\"price\":100.5}");
+        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"키보드\",\"price\":100.5}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
         verify(productService).register("키보드", new BigDecimal("100.5"));
     }
 
     @Test
     @DisplayName("상품명 중복은 409를 응답한다")
-    void duplicateName() throws Exception {
+    void create_shouldReturnConflict_whenNameAlreadyExists() throws Exception {
         when(productService.register(any(), any())).thenThrow(new ProductNameDuplicatedException());
 
         mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON)
@@ -104,10 +153,4 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.errorCode").value("PRODUCT_NAME_DUPLICATED"));
     }
 
-    private void assertBadRequest(String body) throws Exception {
-        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
-    }
 }
