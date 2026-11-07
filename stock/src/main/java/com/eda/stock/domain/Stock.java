@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -30,6 +31,9 @@ public class Stock {
 
     @Column(nullable = false, comment = "실재고 수량")
     private int quantity;
+
+    @Version
+    private Long version;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false, comment = "생성 시각")
@@ -54,6 +58,9 @@ public class Stock {
 
     public void increase(int quantity) {
         requirePositive(quantity);
+        if (quantity > Integer.MAX_VALUE - this.quantity) {
+            throw new BusinessException(ErrorCode.INVALID_STOCK_QUANTITY);
+        }
         this.quantity += quantity;
     }
 

@@ -13,6 +13,15 @@ public class StockCache {
 
     private final StringRedisTemplate redisTemplate;
 
+    public Long increase(Long productId, int quantity) {
+        try {
+            return redisTemplate.opsForValue().increment("stock:available:" + productId, quantity);
+        } catch (DataAccessException ex) {
+            log.warn("Redis 재고 증가 실패 productId={} quantity={}", productId, quantity, ex);
+            return null;
+        }
+    }
+
     public void initialize(Long productId) {
         try {
             redisTemplate.opsForValue().setIfAbsent("stock:available:" + productId, "0");
