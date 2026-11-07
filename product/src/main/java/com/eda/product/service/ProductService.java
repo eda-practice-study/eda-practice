@@ -6,7 +6,7 @@ import com.eda.common.outbox.OutboxWriter;
 import com.eda.product.domain.Product;
 import com.eda.product.dto.CreateProductRequest;
 import com.eda.product.dto.CreateProductResponse;
-import com.eda.product.event.ProductCreated;
+import com.eda.common.event.ProductCreated;
 import com.eda.product.repository.ProductRepository;
 import java.sql.SQLException;
 import lombok.RequiredArgsConstructor;

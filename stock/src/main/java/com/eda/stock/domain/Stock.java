@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -30,6 +31,10 @@ public class Stock {
 
     @Column(nullable = false, comment = "실재고 수량")
     private int quantity;
+
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private long version;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false, comment = "생성 시각")
@@ -54,7 +59,11 @@ public class Stock {
 
     public void increase(int quantity) {
         requirePositive(quantity);
+        if (this.quantity > Integer.MAX_VALUE - quantity) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
         this.quantity += quantity;
+        version++;
     }
 
     public void decrease(int quantity) {
@@ -63,6 +72,7 @@ public class Stock {
             throw new BusinessException(ErrorCode.OUT_OF_STOCK);
         }
         this.quantity -= quantity;
+        version++;
     }
 
     private void requirePositive(int quantity) {

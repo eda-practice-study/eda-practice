@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: order
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/eda?currentSchema=orders
     username: eda
