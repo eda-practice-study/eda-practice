@@ -6,7 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.eda.common.message.MessageHeader;
-import com.eda.stock.cache.StockCache;
+import com.eda.stock.infra.StockCache;
 import com.eda.stock.domain.ProcessedMessageRepository;
 import com.eda.stock.domain.StockRepository;
 import com.eda.stock.service.StockService;

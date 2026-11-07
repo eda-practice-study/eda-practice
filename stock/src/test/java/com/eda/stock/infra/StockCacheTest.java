@@ -1,4 +1,4 @@
-package com.eda.stock.cache;
+package com.eda.stock.infra;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;

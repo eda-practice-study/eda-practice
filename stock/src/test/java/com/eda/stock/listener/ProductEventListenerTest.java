@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.eda.common.message.MessageHeader;
-import com.eda.stock.cache.StockCache;
+import com.eda.stock.infra.StockCache;
 import com.eda.stock.exception.InvalidProductEventException;
 import com.eda.stock.service.StockService;
 import java.nio.charset.StandardCharsets;
