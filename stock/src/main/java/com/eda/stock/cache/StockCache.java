@@ -17,7 +17,7 @@ public class StockCache {
         try {
             redisTemplate.opsForValue().setIfAbsent("stock:available:" + productId, "0");
         } catch (DataAccessException ex) {
-            log.warn("Redis 초기 재고 저장 실패 productId={}; DB 저장은 유지합니다", productId, ex);
+            log.warn("Redis 초기 재고 저장 실패 productId={}", productId, ex);
         }
     }
 }
