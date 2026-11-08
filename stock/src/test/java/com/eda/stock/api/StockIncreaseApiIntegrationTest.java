@@ -27,7 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -79,7 +79,8 @@ class StockIncreaseApiIntegrationTest {
         requestRepository.deleteAll();
         stockRepository.deleteAll();
         stockRepository.saveAndFlush(Stock.createFor(1L));
-        template.opsForValue().set("stock:available:1", "0");
+        template.delete("stock:available:1");
+        template.opsForHash().putAll("stock:available:1", java.util.Map.of("quantity", "0", "version", "0"));
         mvc = MockMvcBuilders.webAppContextSetup(context).build();
     }
 
@@ -101,7 +102,7 @@ class StockIncreaseApiIntegrationTest {
                 .andExpect(jsonPath("$.errorCode").value("DUPLICATE_STOCK_INCREASE_REQUEST"));
 
         assertThat(stockRepository.findByProductId(1L).orElseThrow().getQuantity()).isEqualTo(100);
-        assertThat(template.opsForValue().get("stock:available:1")).isEqualTo("100");
+        assertThat(template.opsForHash().get("stock:available:1", "quantity")).isEqualTo("100");
         assertThat(outboxRepository.count()).isEqualTo(1);
         assertThat(requestRepository.count()).isEqualTo(1);
     }
@@ -109,7 +110,8 @@ class StockIncreaseApiIntegrationTest {
     @Test
     @DisplayName("Redis 호출에 실패해도 DB와 Outbox를 유지하고 같은 키의 재전송은 거절한다")
     void increase_shouldPreserveDatabase_whenRedisUnavailable() throws Exception {
-        doThrow(new RedisConnectionFailureException("unavailable")).when(template).opsForValue();
+        doThrow(new RedisConnectionFailureException("unavailable")).when(template)
+                .execute(any(RedisScript.class), eq(List.of("stock:available:1")), eq("100"), eq("1"));
 
         mvc.perform(post("/api/stocks/1/increase").header("Idempotency-Key", "key")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"quantity\":100}"))
@@ -129,12 +131,10 @@ class StockIncreaseApiIntegrationTest {
     @Test
     @DisplayName("Redis 증가 후 응답을 받지 못해도 HTTP 재전송으로 증가분을 다시 더하지 않는다")
     void increase_shouldApplyOnce_whenRedisResponseLost() throws Exception {
-        ValueOperations<String, String> values = spy(template.opsForValue());
         doAnswer(invocation -> {
             invocation.callRealMethod();
             throw new QueryTimeoutException("response lost");
-        }).when(values).increment("stock:available:1", 100L);
-        doReturn(values).when(template).opsForValue();
+        }).when(template).execute(any(RedisScript.class), eq(List.of("stock:available:1")), eq("100"), eq("1"));
 
         mvc.perform(post("/api/stocks/1/increase").header("Idempotency-Key", "key")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"quantity\":100}"))
@@ -145,8 +145,8 @@ class StockIncreaseApiIntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("DUPLICATE_STOCK_INCREASE_REQUEST"));
 
-        assertThat(values.get("stock:available:1")).isEqualTo("100");
-        verify(values, times(1)).increment("stock:available:1", 100L);
+        assertThat(template.opsForHash().get("stock:available:1", "quantity")).isEqualTo("100");
+        verify(template, times(1)).execute(any(RedisScript.class), eq(List.of("stock:available:1")), eq("100"), eq("1"));
     }
 
     @Test
@@ -174,7 +174,7 @@ class StockIncreaseApiIntegrationTest {
             assertThat(statuses).containsExactlyInAnyOrder(200, 409);
         }
         assertThat(stockRepository.findByProductId(1L).orElseThrow().getQuantity()).isEqualTo(100);
-        assertThat(template.opsForValue().get("stock:available:1")).isEqualTo("100");
+        assertThat(template.opsForHash().get("stock:available:1", "quantity")).isEqualTo("100");
         assertThat(requestRepository.count()).isEqualTo(1);
         assertThat(outboxRepository.count()).isEqualTo(1);
     }

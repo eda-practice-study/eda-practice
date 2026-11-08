@@ -17,3 +17,7 @@ spring:
 
 outbox:
   enabled: false
+
+stock:
+  reconciliation:
+    enabled: false

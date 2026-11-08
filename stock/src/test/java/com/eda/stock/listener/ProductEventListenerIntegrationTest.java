@@ -40,7 +40,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -111,7 +111,8 @@ class ProductEventListenerIntegrationTest {
         await().atMost(Duration.ofSeconds(20)).untilAsserted(() ->
                 assertThat(committedOffset(firstMetadata)).isGreaterThan(firstMetadata.offset()));
         assertThat(databaseCommitted).isTrue();
-        assertThat(redisTemplate.opsForValue().get("stock:available:101")).isEqualTo("0");
+        assertThat(redisTemplate.opsForHash().get("stock:available:101", "quantity")).isEqualTo("0");
+        assertThat(redisTemplate.opsForHash().get("stock:available:101", "version")).isEqualTo("0");
         assertThat(redisTemplate.getExpire("stock:available:101")).isEqualTo(-1L);
         Stock stock = stockRepository.findByProductId(101L).orElseThrow();
         assertThat(stock.getQuantity()).isZero();
@@ -184,10 +185,8 @@ class ProductEventListenerIntegrationTest {
     @DisplayName("Redis 갱신 실패에도 DB와 이력을 커밋하고 Kafka 재시도나 DLT 없이 완료한다")
     void on_shouldCommitDatabase_whenRedisWriteFails() throws Exception {
         UUID messageId = UUID.randomUUID();
-        ValueOperations<String, String> values = mock(ValueOperations.class);
-        when(values.setIfAbsent("stock:available:108", "0"))
-                .thenThrow(new RedisConnectionFailureException("Redis unavailable"));
-        doReturn(values).when(redisTemplate).opsForValue();
+        doThrow(new RedisConnectionFailureException("Redis unavailable")).when(redisTemplate)
+                .execute(any(RedisScript.class), eq(List.of("stock:available:108")));
 
         RecordMetadata metadata = kafkaTemplate.send(event(messageId, 108L)).get(10, TimeUnit.SECONDS).getRecordMetadata();
         await().atMost(Duration.ofSeconds(20)).untilAsserted(() ->
@@ -202,7 +201,7 @@ class ProductEventListenerIntegrationTest {
         assertThat(events).hasSize(1);
         assertThat(events.getFirst().getMessageType()).isEqualTo("StockCreated");
         assertThat(events.getFirst().getStatus()).isEqualTo(OutboxStatus.PENDING);
-        verify(values, times(1)).setIfAbsent("stock:available:108", "0");
+        verify(redisTemplate, times(1)).execute(any(RedisScript.class), eq(List.of("stock:available:108")));
         verify(recoverer, never()).accept(any(), any(), any());
     }
 

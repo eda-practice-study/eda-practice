@@ -83,8 +83,9 @@ class StockIncreaseServiceIntegrationTest {
     @Test
     @DisplayName("재고와 멱등성 이력 및 Outbox를 커밋한 뒤 Redis를 호출한다")
     void increaseForRequest_shouldCommitBeforeRedis_whenRequestNew() {
-        when(stockCache.increase(1L, 10)).thenAnswer(invocation -> {
+        when(stockCache.synchronize(1L, 10, 1L)).thenAnswer(invocation -> {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            assertThat(invocation.<Long>getArgument(2)).isEqualTo(1L);
             assertThat(stockRepository.findByProductId(1L).orElseThrow().getQuantity()).isEqualTo(10);
             assertThat(requestRepository.findById(new RequestHistoryId("STOCK_INCREASE", "key"))).isPresent();
             assertThat(outboxRepository.count()).isEqualTo(1);
@@ -115,7 +116,7 @@ class StockIncreaseServiceIntegrationTest {
     void increaseForRequest_shouldSucceed_whenOtherRequestTypeExists() {
         // given
         requestRepository.save(new RequestHistory("OTHER_REQUEST", "key"));
-        when(stockCache.increase(1L, 10)).thenReturn(10L);
+        when(stockCache.synchronize(1L, 10, 1L)).thenReturn(10L);
 
         // when
         StockIncreaseResponse response = service.increaseForRequest("key", 1L, 10);
@@ -126,7 +127,7 @@ class StockIncreaseServiceIntegrationTest {
         assertThat(requestRepository.existsById(new RequestHistoryId("OTHER_REQUEST", "key"))).isTrue();
         assertThat(requestRepository.existsById(new RequestHistoryId("STOCK_INCREASE", "key"))).isTrue();
         assertThat(outboxRepository.count()).isEqualTo(1);
-        verify(stockCache, times(1)).increase(1L, 10);
+        verify(stockCache, times(1)).synchronize(1L, 10, 1L);
     }
 
     @Test
@@ -201,7 +202,7 @@ class StockIncreaseServiceIntegrationTest {
     @DisplayName("이미 처리한 키는 유일 제약 예외를 던지고 재고와 이벤트 및 Redis를 추가하지 않는다")
     void increaseForRequest_shouldThrowConstraintException_whenRequestRepeated() {
         // given
-        when(stockCache.increase(1L, 10)).thenReturn(10L);
+        when(stockCache.synchronize(1L, 10, 1L)).thenReturn(10L);
         service.increaseForRequest("key", 1L, 10);
 
         // when, then
@@ -210,7 +211,7 @@ class StockIncreaseServiceIntegrationTest {
         assertThat(stockRepository.findByProductId(1L).orElseThrow().getQuantity()).isEqualTo(10);
         assertThat(outboxRepository.count()).isEqualTo(1);
         assertThat(requestRepository.count()).isEqualTo(1);
-        verify(stockCache, times(1)).increase(1L, 10);
+        verify(stockCache, times(1)).synchronize(1L, 10, 1L);
     }
 
     @Test
@@ -232,7 +233,7 @@ class StockIncreaseServiceIntegrationTest {
     void increaseForRequest_shouldApplyOnce_whenSameKeyConcurrent() throws Exception {
         var redisStarted = new CountDownLatch(1);
         var releaseRedis = new CountDownLatch(1);
-        when(stockCache.increase(1L, 10)).thenAnswer(invocation -> {
+        when(stockCache.synchronize(1L, 10, 1L)).thenAnswer(invocation -> {
             redisStarted.countDown();
             assertThat(releaseRedis.await(10, TimeUnit.SECONDS)).isTrue();
             return 10L;
@@ -250,7 +251,7 @@ class StockIncreaseServiceIntegrationTest {
         }
         assertThat(stockRepository.findByProductId(1L).orElseThrow().getQuantity()).isEqualTo(10);
         assertThat(outboxRepository.count()).isEqualTo(1);
-        verify(stockCache, times(1)).increase(1L, 10);
+        verify(stockCache, times(1)).synchronize(1L, 10, 1L);
     }
 
     @Test
@@ -280,6 +281,6 @@ class StockIncreaseServiceIntegrationTest {
         assertThat(stockRepository.findByProductId(1L).orElseThrow().getQuantity()).isEqualTo(10);
         assertThat(requestRepository.count()).isEqualTo(1);
         assertThat(outboxRepository.count()).isEqualTo(1);
-        verify(stockCache, times(1)).increase(1L, 10);
+        verify(stockCache, times(1)).synchronize(1L, 10, 1L);
     }
 }
