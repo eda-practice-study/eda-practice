@@ -55,7 +55,7 @@ stock은 `ProductCreated`를 받아 수량이 0인 Stock을 만든다.
 
 `POST /api/stocks/{productId}/increase`는 [스터디 명세](../../docs/api/stock.md)의 재고 증가 응답을 따른다.
 현재 구현에서는 HTTP 재전송 방지를 위해 `Idempotency-Key` 헤더를 추가로 요구한다.
-키는 공백만으로 구성할 수 없고 최대 128자이며, 재고 증가 API 전체에서 대소문자를 구분해 유일하게 사용한다.
+키는 공백만으로 구성할 수 없고 최대 128자다. stock 공통 `request_history`의 `(request_type, idempotency_key)` 복합 PK로 중복을 막는다.
 본문의 `quantity`는 필수이며 1~10,000이다. 상품 ID는 양수여야 한다.
 
 외부 코드가 호출하는 공개 진입점은 `StockIncreaseService.increaseForRequest`다.
@@ -66,15 +66,15 @@ stock은 `ProductCreated`를 받아 수량이 0인 Stock을 만든다.
 외부 트랜잭션을 중단하는 설정은 두지 않는다. 향후 다른 트랜잭션 안에서 재사용하면
 DB 처리가 해당 트랜잭션에 참여할 수 있으므로 커밋과 Redis 호출 순서를 다시 설계해야 한다.
 
-1. `StockWriteService.increase`의 트랜잭션에서 키와 상품 ID를 이력에 INSERT한다.
-2. 이미 저장된 키라면 유일 제약으로 거절한다. 키가 같으면 상품이나 증가량을 비교하지 않는다.
+1. `StockWriteService.increase`의 트랜잭션에서 요청 종류 `STOCK_INCREASE`와 키를 이력에 `save()`한다.
+2. 같은 요청 종류와 키가 이미 있으면 복합 PK로 거절한다. 다른 요청 종류는 같은 키를 사용할 수 있다.
 3. 재고를 조회해 증가시키고 `StockIncreased` Outbox를 이력과 함께 커밋한다.
 4. 커밋에 성공한 경우에만 `StockIncreaseService`가 Redis의 기존 가용 재고에 증가량을 한 번 더한다.
 5. `200 OK`의 `quantity`는 해당 요청이 증가시킨 후의 DB 수량이며, `availableQuantity`는 Redis 증가 명령의 반환값이다.
    Redis 호출에 실패하거나 결과가 불확실하면 `availableQuantity`는 `null`이다.
 
-이력에는 키, 상품 ID, 생성 시각만 남긴다. 요청 증가량, 응답 수량, 응답 완료 상태는 저장하지 않으며
-최초 응답을 재반환하지 않는다. 중복 키의 DB 제약 예외는 API 예외 처리에서 `409`로 변환한다.
+이력에는 요청 종류, 키, 생성 시각만 남긴다. 상품 ID나 응답은 저장하지 않으며
+최초 응답을 재반환하지 않는다. `request_history_pkey` 위반은 기존 API 예외 처리에서 `409`로 변환한다.
 다른 DB 제약 위반을 중복 키 오류로 일괄 변환하지 않는다.
 
 재고에는 `@Version`을 적용한다. 같은 버전을 동시에 수정하면 한 요청은 실패하고 재시도하지 않는다.
@@ -87,13 +87,13 @@ Kafka는 기존 Relay가 발행하며 Redis 성공 여부와 발행 순서는 �
 
 | 상황 | 응답과 동작 |
 |---|---|
-| 이미 저장된 키로 재요청 | `409 DUPLICATE_STOCK_INCREASE_REQUEST`, DB와 Redis 및 Outbox 추가 처리 없음 |
+| 같은 요청 종류와 키로 재요청 | `409 DUPLICATE_STOCK_INCREASE_REQUEST`, DB와 Redis 및 Outbox 추가 처리 없음 |
 | 필수 헤더 누락, 공백 키, 키 길이 초과, 잘못된 상품 ID나 증가량 | `400 VALIDATION_ERROR` |
 | 재고 행 없음 | `404 STOCK_NOT_FOUND` |
 | 낙관적 락 충돌 | `409 STOCK_INCREASE_CONFLICT`, 자동 재시도 없음 |
 | 누적 실재고의 int 범위 초과 | `400 INVALID_STOCK_QUANTITY`, 기존 수량 유지 |
 
-동시에 같은 키가 들어와도 DB 유일 제약으로 한 요청만 커밋된다.
+동시에 같은 요청 종류와 키가 들어와도 복합 PK로 한 요청만 커밋된다.
 재고나 Outbox 저장이 실패하면 이력도 롤백되므로 같은 키로 다시 요청할 수 있다.
 Redis 반영 실패나 DB 커밋 직후 서버 종료가 발생해도 키는 유지되며, 같은 키로 Redis를 다시 실행하지 않는다.
 
@@ -105,7 +105,7 @@ Redis 반영 실패나 DB 커밋 직후 서버 종료가 발생해도 키는 유
 - 최초 성공 응답이 유실되면 재요청은 `409`를 반환할 뿐 원래 응답이나 Redis 반영 결과를 알려주지 않는다.
 - 저장된 키를 삭제하거나 새 키로 재요청하면 DB가 다시 증가할 수 있다. 이력 보관·정리 정책과 인증에 따른 키 범위는 후속 과제다.
 
-선택 이유와 위험은 [중복 요청 거절 결정](../adr/0008-stock-increase-duplicate-rejection.md)에 정리했다.
+키 범위와 이전 결정은 [공통 요청 이력 결정](../adr/0009-stock-request-history.md)에 정리했다.
 검증은 `StockIncreaseServiceTest`, `StockControllerTest`, PostgreSQL을 사용하는
 `StockIncreaseServiceIntegrationTest`, 실제 Valkey를 사용하는 `StockIncreaseApiIntegrationTest`,
 Embedded Kafka를 사용하는 `StockIncreaseOutboxRelayIntegrationTest`에서 수행한다.

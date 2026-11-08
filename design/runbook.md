@@ -140,15 +140,16 @@ curl -i -X POST http://localhost:8084/api/stocks/1/increase \
   -d '{"quantity":100}'
 ```
 
-같은 키를 재전송하면 요청 내용에 관계없이 `409 DUPLICATE_STOCK_INCREASE_REQUEST`를 반환하고 재고와 이벤트는 추가하지 않는다.
+같은 요청 종류에서 키를 재전송하면 요청 내용에 관계없이 `409 DUPLICATE_STOCK_INCREASE_REQUEST`를 반환하고 재고와 이벤트는 추가하지 않는다.
 Redis 호출이 실패하면 DB 수량은 증가하고 `availableQuantity`는 `null`이다.
 중복 키 오류는 DB 증가가 이미 커밋됐다는 뜻이며 Redis 반영 여부나 최초 응답 수신 여부를 알려주지 않는다.
 응답을 받지 못했다는 이유로 새 키를 사용하면 다시 증가할 수 있다. 현재 자동 재처리나 대사는 없다.
 
 ```sql
 SELECT product_id, quantity, version FROM stock.stock WHERE product_id = 1;
-SELECT idempotency_key, product_id, created_at
-FROM stock.stock_increase_request WHERE idempotency_key = 'stock-increase-example-1';
+SELECT request_type, idempotency_key, created_at
+FROM stock.request_history
+WHERE request_type = 'STOCK_INCREASE' AND idempotency_key = 'stock-increase-example-1';
 SELECT message_type, payload, status FROM stock.outbox_message
 WHERE message_key = '1' AND message_type = 'StockIncreased';
 ```
@@ -165,17 +166,32 @@ ALTER TABLE stock.stock ALTER COLUMN version SET DEFAULT 0;
 ALTER TABLE stock.stock ALTER COLUMN version SET NOT NULL;
 ```
 
-이전 응답 저장 방식의 스키마가 있다면, 애플리케이션을 중지하고 아래 컬럼을 제거한 뒤 새 버전을 실행한다.
-Hibernate `ddl-auto=update`는 삭제된 필드를 테이블에서 자동 제거하지 않으므로,
-기존 NOT NULL 컬럼이 남으면 새 요청 이력 INSERT가 실패할 수 있다.
-기존 멱등성 키와 상품 ID는 유지하며 이력 자체를 삭제하지 않는다. 아래 변경은 자동 실행되지 않는다.
+기존 `stock_increase_request`가 있는 DB는 서비스를 중지하고 아래 SQL로 키를 이전한 뒤 새 버전을 실행한다.
+`ddl-auto=update`는 기존 이력을 복사하지 않는다. 기존 테이블은 확인과 복구를 위해 남겨 둔다.
+신규 DB는 Hibernate가 공통 테이블을 생성하므로 복사가 필요 없다.
 
 ```sql
-ALTER TABLE stock.stock_increase_request
-    DROP COLUMN IF EXISTS increased_quantity,
-    DROP COLUMN IF EXISTS quantity,
-    DROP COLUMN IF EXISTS available_quantity,
-    DROP COLUMN IF EXISTS completed;
+BEGIN;
+CREATE TABLE IF NOT EXISTS stock.request_history (
+    request_type varchar(64) NOT NULL,
+    idempotency_key varchar(128) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT request_history_pkey PRIMARY KEY (request_type, idempotency_key)
+);
+INSERT INTO stock.request_history (request_type, idempotency_key, created_at)
+SELECT 'STOCK_INCREASE', idempotency_key, created_at
+FROM stock.stock_increase_request
+ON CONFLICT (request_type, idempotency_key) DO NOTHING;
+COMMIT;
+
+-- 0건이어야 기존 증가 키가 모두 이전된 것이다.
+SELECT count(*) AS missing_keys
+FROM stock.stock_increase_request old_history
+WHERE NOT EXISTS (
+    SELECT 1 FROM stock.request_history history
+    WHERE history.request_type = 'STOCK_INCREASE'
+      AND history.idempotency_key = old_history.idempotency_key
+);
 ```
 
 ## 실패 위치 확인
