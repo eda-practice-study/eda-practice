@@ -5,7 +5,7 @@ if kind == 'hash' then
     -- Compare nonnegative decimal strings without Lua floating-point rounding.
     if currentVersion and (#currentVersion > #incomingVersion
             or (#currentVersion == #incomingVersion and currentVersion > incomingVersion)) then
-        return tonumber(redis.call('HGET', KEYS[1], 'quantity'))
+        return nil
     end
 elseif kind ~= 'none' and kind ~= 'string' then
     return redis.error_reply('Unexpected stock key type: ' .. kind)

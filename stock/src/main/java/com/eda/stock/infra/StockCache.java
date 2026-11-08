@@ -21,6 +21,7 @@ public class StockCache {
 
     private final StringRedisTemplate redisTemplate;
 
+    /** 요청 버전으로 반영한 수량을 반환한다. 더 최신 버전이 있거나 Redis 호출에 실패하면 null이다. */
     public Long synchronize(Long productId, int quantity, long version) {
         try {
             return redisTemplate.execute(SYNCHRONIZE, List.of("stock:available:" + productId),
