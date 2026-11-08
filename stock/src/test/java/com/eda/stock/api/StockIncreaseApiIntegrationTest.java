@@ -7,7 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.eda.common.outbox.OutboxRepository;
 import com.eda.stock.domain.Stock;
-import com.eda.stock.domain.StockIncreaseRequestRepository;
+import com.eda.stock.domain.RequestHistoryRepository;
+import com.eda.stock.domain.RequestHistoryId;
 import com.eda.stock.domain.StockRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -67,7 +68,7 @@ class StockIncreaseApiIntegrationTest {
 
     @Autowired WebApplicationContext context;
     @Autowired StockRepository stockRepository;
-    @Autowired StockIncreaseRequestRepository requestRepository;
+    @Autowired RequestHistoryRepository requestRepository;
     @Autowired OutboxRepository outboxRepository;
     @MockitoSpyBean StringRedisTemplate template;
     private MockMvc mvc;
@@ -122,7 +123,7 @@ class StockIncreaseApiIntegrationTest {
 
         assertThat(stockRepository.findByProductId(1L).orElseThrow().getQuantity()).isEqualTo(100);
         assertThat(outboxRepository.count()).isEqualTo(1);
-        assertThat(requestRepository.findByIdempotencyKey("key")).isPresent();
+        assertThat(requestRepository.findById(new RequestHistoryId("STOCK_INCREASE", "key"))).isPresent();
     }
 
     @Test
