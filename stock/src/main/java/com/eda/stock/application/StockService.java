@@ -1,7 +1,11 @@
 package com.eda.stock.application;
 
+import com.eda.common.exception.BusinessException;
+import com.eda.common.exception.ErrorCode;
 import com.eda.common.message.stock.StockCreated;
+import com.eda.common.message.stock.StockIncreased;
 import com.eda.common.outbox.OutboxWriter;
+import com.eda.stock.api.dto.IncreaseStockResponse;
 import com.eda.stock.domain.Stock;
 import com.eda.stock.domain.StockRepository;
 import com.eda.stock.infrastructure.StockRedisRepository;
@@ -35,8 +39,31 @@ public class StockService {
         // 이벤트 발행
         outboxWriter.write(
                 "stock.events",
-                stock.getId().toString(),
-                new StockCreated(stock.getId(), stock.getProductId(), stock.getQuantity())
+                stock.getProductId().toString(),
+                new StockCreated(stock.getProductId(), stock.getQuantity())
         );
+    }
+
+    @Transactional
+    public IncreaseStockResponse increaseStock(Long productId, int quantity) {
+
+        // 재고 조회
+        Stock stock = stockRepository.findByProductId(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STOCK_NOT_FOUND));
+
+        // 재고 증가
+        stock.increase(quantity);
+
+        // 이벤트 발행
+        outboxWriter.write(
+                "stock.events",
+                stock.getProductId().toString(),
+                new StockIncreased(stock.getProductId(), stock.getQuantity())
+        );
+
+        // TODO: Redis 재고 증가 후 availableQuantity 반환 구현
+        Integer availableQuantity = null;
+
+        return IncreaseStockResponse.from(stock.getProductId(), stock.getQuantity(), availableQuantity);
     }
 }
