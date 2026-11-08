@@ -15,7 +15,7 @@ class StockCacheSynchronizationTest {
     private final StockCache cache = new StockCache(template);
 
     @Test
-    @DisplayName("수량과 버전을 스크립트에 전달하고 반영 후 Redis 수량을 반환한다")
+    @DisplayName("수량과 버전을 스크립트에 전달하고 해당 버전으로 반영한 수량을 반환한다")
     @SuppressWarnings("unchecked")
     void synchronize_shouldReturnAvailability_whenRedisSucceeds() {
         // given
@@ -27,6 +27,22 @@ class StockCacheSynchronizationTest {
 
         // then
         assertThat(available).isEqualTo(110L);
+    }
+
+    @Test
+    @DisplayName("Redis에 더 최신 버전이 있으면 해당 요청의 가용 재고는 null로 반환한다")
+    @SuppressWarnings("unchecked")
+    void synchronize_shouldReturnNull_whenVersionSuperseded() {
+        // given
+        when(template.execute(any(RedisScript.class), eq(List.of("stock:available:1")), eq("110"), eq("5")))
+                .thenReturn(null);
+
+        // when
+        Long available = cache.synchronize(1L, 110, 5L);
+
+        // then
+        assertThat(available).isNull();
+        verify(template, times(1)).execute(any(RedisScript.class), eq(List.of("stock:available:1")), eq("110"), eq("5"));
     }
 
     @Test
