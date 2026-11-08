@@ -95,7 +95,7 @@ class StockControllerTest {
     @DisplayName("이미 처리한 멱등성 키의 유일 제약 충돌이면 409를 응답한다")
     void increase_shouldReturnIdempotencyKeyConflict_whenKeyAlreadyProcessed() throws Exception {
         // given
-        var cause = new ConstraintViolationException("duplicate key", new SQLException(), "uk_stock_increase_key");
+        var cause = new ConstraintViolationException("duplicate key", new SQLException(), "request_history_pkey");
         when(service.increaseForRequest("key", 1L, 100))
                 .thenThrow(new DataIntegrityViolationException("duplicate key", cause));
 

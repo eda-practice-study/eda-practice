@@ -5,8 +5,8 @@ import com.eda.common.exception.ErrorCode;
 import com.eda.common.message.stock.StockIncreased;
 import com.eda.common.outbox.OutboxWriter;
 import com.eda.stock.domain.Stock;
-import com.eda.stock.domain.StockIncreaseRequestHistory;
-import com.eda.stock.domain.StockIncreaseRequestRepository;
+import com.eda.stock.domain.RequestHistory;
+import com.eda.stock.domain.RequestHistoryRepository;
 import com.eda.stock.domain.StockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,14 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class StockWriteService {
 
+    private static final String STOCK_INCREASE = "STOCK_INCREASE";
+
     private final StockRepository stockRepository;
-    private final StockIncreaseRequestRepository requestRepository;
+    private final RequestHistoryRepository requestRepository;
     private final OutboxWriter outboxWriter;
 
     @Transactional
     public int increase(String key, Long productId, int quantity) {
-        // 같은 키의 동시 요청은 재고를 읽기 전에 유일 제약으로 차단한다.
-        requestRepository.saveAndFlush(new StockIncreaseRequestHistory(key, productId));
+        requestRepository.save(new RequestHistory(STOCK_INCREASE, key));
 
         Stock stock = stockRepository.findByProductId(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STOCK_NOT_FOUND));

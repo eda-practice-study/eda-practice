@@ -3,7 +3,7 @@ package com.eda.stock.service;
 import com.eda.common.exception.BusinessException;
 import com.eda.common.exception.ErrorCode;
 import com.eda.stock.api.StockIncreaseResponse;
-import com.eda.stock.domain.StockIncreaseRequestHistory;
+import com.eda.stock.domain.RequestHistoryId;
 import com.eda.stock.infra.StockCache;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,7 +24,7 @@ public class StockIncreaseService {
     }
 
     private void validateRequest(String key, Long productId, int quantity) {
-        if (key == null || key.isBlank() || key.length() > StockIncreaseRequestHistory.MAX_KEY_LENGTH
+        if (key == null || key.isBlank() || key.length() > RequestHistoryId.MAX_KEY_LENGTH
                 || productId == null || productId <= 0 || quantity < 1 || quantity > 10000) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }

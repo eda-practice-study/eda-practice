@@ -22,7 +22,7 @@ public class StockControllerAdvice {
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
             if (cause instanceof ConstraintViolationException violation
-                    && "uk_stock_increase_key".equals(violation.getConstraintName())) {
+                    && "request_history_pkey".equals(violation.getConstraintName())) {
                 return ResponseEntity.status(ErrorCode.DUPLICATE_STOCK_INCREASE_REQUEST.getStatus())
                         .body(ErrorResponse.of(ErrorCode.DUPLICATE_STOCK_INCREASE_REQUEST));
             }
