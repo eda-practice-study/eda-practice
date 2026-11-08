@@ -153,7 +153,10 @@ class StockReconciliationIntegrationTest {
         }
 
         // then
-        assertThat(firstResponse).isEqualTo(new StockIncreaseResponse(1L, 10, 20L));
+        assertThat(firstResponse).isEqualTo(new StockIncreaseResponse(1L, 10, null));
+        Stock latestStock = stockRepository.findByProductId(1L).orElseThrow();
+        assertThat(latestStock.getQuantity()).isEqualTo(20);
+        assertThat(latestStock.getVersion()).isEqualTo(2L);
         assertThat(template.opsForHash().entries("stock:available:1"))
                 .containsExactlyInAnyOrderEntriesOf(Map.of("quantity", "20", "version", "2"));
     }

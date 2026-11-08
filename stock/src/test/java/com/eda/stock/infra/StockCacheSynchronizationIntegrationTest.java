@@ -38,7 +38,7 @@ class StockCacheSynchronizationIntegrationTest {
     }
 
     @Test
-    @DisplayName("최신 버전이 먼저 도착하면 나중에 도착한 이전 버전은 무시한다")
+    @DisplayName("최신 버전이 먼저 도착하면 이전 버전은 null을 반환하고 최신 재고를 유지한다")
     void synchronize_shouldPreserveLatest_whenOlderArrivesLater() {
         // given
         cache.synchronize(1L, 130, 6L);
@@ -47,7 +47,7 @@ class StockCacheSynchronizationIntegrationTest {
         Long available = cache.synchronize(1L, 110, 5L);
 
         // then
-        assertThat(available).isEqualTo(130L);
+        assertThat(available).isNull();
         assertThat(template.opsForHash().entries("stock:available:1"))
                 .containsExactlyInAnyOrderEntriesOf(Map.of("quantity", "130", "version", "6"));
     }
@@ -78,7 +78,7 @@ class StockCacheSynchronizationIntegrationTest {
         Long available = cache.synchronize(1L, 110, Long.MAX_VALUE - 1);
 
         // then
-        assertThat(available).isEqualTo(130L);
+        assertThat(available).isNull();
         assertThat(template.opsForHash().get("stock:available:1", "version")).isEqualTo(Long.toString(Long.MAX_VALUE));
     }
 
