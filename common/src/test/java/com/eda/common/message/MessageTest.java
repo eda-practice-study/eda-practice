@@ -47,7 +47,7 @@ class MessageTest {
         record.headers().add(MessageHeader.OCCURRED_AT, bytes(occurredAt.toString()));
 
         // when
-        Message<SampleCreated> message = Message.from(record, SampleCreated.class, jsonMapper);
+        Message<SampleCreated> message = Message.from(record, SampleCreated.class);
 
         // then
         assertThat(message).isEqualTo(new Message<>(messageId, "SampleCreated", occurredAt, new SampleCreated(1L, "키보드")));
@@ -58,7 +58,7 @@ class MessageTest {
     void failWithoutHeader() {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("sample.events", 0, 0L, "1", "{}");
 
-        assertThatThrownBy(() -> Message.from(record, SampleCreated.class, jsonMapper))
+        assertThatThrownBy(() -> Message.from(record, SampleCreated.class))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(MessageHeader.MESSAGE_ID);
     }

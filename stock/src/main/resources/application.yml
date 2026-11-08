@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: stock
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      connect-timeout: 2s
+      timeout: 2s
   kafka:
     producer:
       acks: all
