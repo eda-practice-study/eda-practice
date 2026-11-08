@@ -23,7 +23,7 @@ class StockWriteService {
     private final OutboxWriter outboxWriter;
 
     @Transactional
-    public int increase(String key, Long productId, int quantity) {
+    public Stock increase(String key, Long productId, int quantity) {
         requestRepository.save(new RequestHistory(STOCK_INCREASE, key));
 
         Stock stock = stockRepository.findByProductId(productId)
@@ -32,7 +32,7 @@ class StockWriteService {
 
         outboxWriter.write("stock.events", productId.toString(),
                 new StockIncreased(productId, quantity, stock.getQuantity()));
-        return stock.getQuantity();
+        return stock;
     }
 
 }
