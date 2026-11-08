@@ -18,6 +18,7 @@
 | 0008 | stock | [저장된 멱등성 키의 재고 증가 요청을 거절](0008-stock-increase-duplicate-rejection.md) | 대체됨 |
 | 0009 | stock | [요청 종류와 멱등성 키로 공통 요청 이력 관리](0009-stock-request-history.md) | 채택 |
 | 0010 | stock | [DB 수량과 버전으로 Redis 반영과 대사](0010-stock-cache-reconciliation.md) | 채택 |
+| 0011 | stock | [재고 증가 응답의 두 수량을 같은 DB 버전으로 제공](0011-stock-increase-response-version.md) | 채택 |
 
 0001~0006은 기존 대화에서 합의하고 구현한 내용을 2026-11-07에 정리한 기록이다.
 이후 기록은 각 문서의 기록일을 따른다. 번호는 실제 합의 시점의 순서를 의미하지 않는다.

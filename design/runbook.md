@@ -141,7 +141,7 @@ curl -i -X POST http://localhost:8084/api/stocks/1/increase \
 ```
 
 같은 요청 종류에서 키를 재전송하면 요청 내용에 관계없이 `409 DUPLICATE_STOCK_INCREASE_REQUEST`를 반환하고 재고와 이벤트는 추가하지 않는다.
-Redis 호출이 실패하면 DB 수량은 증가하고 `availableQuantity`는 `null`이다.
+Redis 호출이 실패하거나 더 최신 버전이 있어 반영을 건너뛰면 `availableQuantity`는 `null`이다. DB 증가는 유지된다.
 중복 키 오류는 DB 증가가 이미 커밋됐다는 뜻이며 Redis 반영 여부나 최초 응답 수신 여부를 알려주지 않는다.
 응답을 받지 못했다는 이유로 새 키를 사용하면 다시 증가할 수 있다. 같은 HTTP 요청을 재실행하지 않고 주기 대사가 DB 상태로 Redis를 복구한다.
 

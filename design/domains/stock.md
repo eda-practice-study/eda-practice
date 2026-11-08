@@ -59,8 +59,9 @@ stock은 `ProductCreated`를 받아 수량이 0인 Stock을 만든다.
 
 Redis는 증가량을 더하지 않고 DB의 전체 수량을 저장한다. 더 오래된 버전은 무시하고,
 같거나 최신인 버전은 수량과 함께 원자적으로 저장한다. API의 `quantity`는 해당 요청의 DB 결과,
-`availableQuantity`는 스크립트 처리 후 Redis 수량이며 반영 실패 시 `null`이다.
-따라서 더 최신 요청이 먼저 반영되면 두 응답 수량은 다를 수 있다.
+`availableQuantity`는 해당 DB 버전으로 반영한 수량이다. Redis에 더 최신 버전이 있어 쓰기를 건너뛰거나
+호출에 실패하면 `null`이다. 두 값이 모두 숫자이면 같은 DB 버전을 나타내며, 응답 시점의 최신 상태를 보장하지는 않는다.
+응답 계약은 [동일 버전 응답 결정](../adr/0011-stock-increase-response-version.md)을 따른다.
 
 이력에는 요청 종류, 키, 생성 시각만 남긴다. 상품 ID나 응답은 저장하지 않으며
 최초 응답을 재반환하지 않는다. `request_history_pkey` 위반은 기존 API 예외 처리에서 `409`로 변환한다.
