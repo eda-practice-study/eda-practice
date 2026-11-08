@@ -36,3 +36,9 @@ spring:
         default_schema: stock
         hbm2ddl:
           create_namespaces: true
+
+stock:
+  reconciliation:
+    enabled: true
+    interval: 60s
+    batch-size: 100
