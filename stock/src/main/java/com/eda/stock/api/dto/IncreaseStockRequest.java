@@ -8,6 +8,6 @@ public record IncreaseStockRequest(
         @NotNull
         @Min(1)
         @Max(10_000)
-        int quantity
+        Integer quantity
 ) {
 }
