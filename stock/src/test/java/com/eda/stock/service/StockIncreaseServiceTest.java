@@ -7,6 +7,8 @@ import com.eda.common.exception.BusinessException;
 import com.eda.common.exception.ErrorCode;
 import com.eda.stock.api.StockIncreaseResponse;
 import com.eda.stock.infra.StockCache;
+import com.eda.stock.domain.Stock;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,8 +29,8 @@ class StockIncreaseServiceTest {
     @DisplayName("DB 증가가 끝난 뒤 Redis를 증가시키고 수량을 반환한다")
     void increaseForRequest_shouldReturnStock_whenDatabaseCommitted() {
         // given
-        when(stockWriteService.increase("key", 1L, 10)).thenReturn(110);
-        when(stockCache.increase(1L, 10)).thenReturn(110L);
+        when(stockWriteService.increase("key", 1L, 10)).thenReturn(committedStock());
+        when(stockCache.synchronize(1L, 110, 5L)).thenReturn(110L);
 
         // when
         StockIncreaseResponse response = service.increaseForRequest("key", 1L, 10);
@@ -37,7 +39,7 @@ class StockIncreaseServiceTest {
         assertThat(response).isEqualTo(new StockIncreaseResponse(1L, 110, 110L));
         InOrder order = inOrder(stockWriteService, stockCache);
         order.verify(stockWriteService).increase("key", 1L, 10);
-        order.verify(stockCache).increase(1L, 10);
+        order.verify(stockCache).synchronize(1L, 110, 5L);
         verifyNoMoreInteractions(stockWriteService, stockCache);
     }
 
@@ -45,15 +47,15 @@ class StockIncreaseServiceTest {
     @DisplayName("Redis 결과가 불확실하면 DB 수량과 가용 재고 null을 반환한다")
     void increaseForRequest_shouldReturnNullAvailability_whenRedisFails() {
         // given
-        when(stockWriteService.increase("key", 1L, 10)).thenReturn(110);
-        when(stockCache.increase(1L, 10)).thenReturn(null);
+        when(stockWriteService.increase("key", 1L, 10)).thenReturn(committedStock());
+        when(stockCache.synchronize(1L, 110, 5L)).thenReturn(null);
 
         // when
         StockIncreaseResponse response = service.increaseForRequest("key", 1L, 10);
 
         // then
         assertThat(response).isEqualTo(new StockIncreaseResponse(1L, 110, null));
-        verify(stockCache, times(1)).increase(1L, 10);
+        verify(stockCache, times(1)).synchronize(1L, 110, 5L);
     }
 
     @Test
@@ -90,5 +92,12 @@ class StockIncreaseServiceTest {
                 .isInstanceOfSatisfying(BusinessException.class,
                         ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.VALIDATION_ERROR));
         verifyNoInteractions(stockWriteService, stockCache);
+    }
+
+    private Stock committedStock() {
+        Stock stock = Stock.createFor(1L);
+        stock.increase(110);
+        ReflectionTestUtils.setField(stock, "version", 5L);
+        return stock;
     }
 }

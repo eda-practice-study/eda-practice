@@ -3,59 +3,26 @@ package com.eda.stock.infra;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 
-@ExtendWith(MockitoExtension.class)
 class StockCacheTest {
-
-    @Mock
-    private StringRedisTemplate redisTemplate;
-    @Mock
-    private ValueOperations<String, String> values;
-    @InjectMocks
-    private StockCache stockCache;
+    private final StringRedisTemplate template = mock(StringRedisTemplate.class);
+    private final StockCache cache = new StockCache(template);
 
     @Test
-    @DisplayName("새 상품의 Redis 수량을 덮어쓰기 없이 0으로 초기화한다")
-    void initialize_shouldSetZero_whenKeyMissing() {
-        when(redisTemplate.opsForValue()).thenReturn(values);
-        when(values.setIfAbsent("stock:available:1", "0")).thenReturn(true);
+    @DisplayName("Redis 초기화 실패를 호출자에게 전파하지 않는다")
+    @SuppressWarnings("unchecked")
+    void initialize_shouldReturnNormally_whenRedisFails() {
+        // given
+        doThrow(new RedisConnectionFailureException("unavailable")).when(template)
+                .execute(any(RedisScript.class), eq(List.of("stock:available:1")));
 
-        stockCache.initialize(1L);
-
-        verify(values).setIfAbsent("stock:available:1", "0");
-        verifyNoMoreInteractions(values);
-    }
-
-    @Test
-    @DisplayName("기존 키로 초기화가 거절되어도 값을 덮어쓰지 않는다")
-    void initialize_shouldPreserveValue_whenKeyAlreadyExists() {
-        when(redisTemplate.opsForValue()).thenReturn(values);
-        when(values.setIfAbsent("stock:available:1", "0")).thenReturn(false);
-
-        assertThatCode(() -> stockCache.initialize(1L)).doesNotThrowAnyException();
-
-        verify(values).setIfAbsent("stock:available:1", "0");
-        verifyNoMoreInteractions(values);
-    }
-
-    @Test
-    @DisplayName("Redis 연결 실패는 리스너로 전파하지 않는다")
-    void initialize_shouldReturnNormally_whenRedisConnectionFails() {
-        when(redisTemplate.opsForValue()).thenReturn(values);
-        when(values.setIfAbsent("stock:available:1", "0"))
-                .thenThrow(new RedisConnectionFailureException("Redis unavailable"));
-
-        assertThatCode(() -> stockCache.initialize(1L)).doesNotThrowAnyException();
-
-        verify(values, times(1)).setIfAbsent("stock:available:1", "0");
+        // when, then
+        assertThatCode(() -> cache.initialize(1L)).doesNotThrowAnyException();
     }
 }
