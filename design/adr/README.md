@@ -11,12 +11,13 @@
 | 0001 | product, stock, order | [업무 데이터와 발행 이벤트를 Outbox에 함께 저장](0001-transactional-outbox.md) | 채택 |
 | 0002 | stock, order | [처리 이력과 업무 데이터를 같은 트랜잭션에 저장](0002-consumer-idempotency.md) | 채택 |
 | 0003 | stock, order | [BATCH ACK와 재시도 및 DLT 사용](0003-kafka-consumer-recovery.md) | 채택 |
-| 0004 | stock | [DB 커밋 후 Redis 초기화 실패 허용](0004-stock-redis-initialization.md) | 채택 |
+| 0004 | stock | [DB 커밋 후 Redis 초기화 실패 허용](0004-stock-redis-initialization.md) | 대체됨 |
 | 0005 | order | [상품 생성 이벤트로 기존 스냅샷을 갱신하지 않음](0005-snapshot-create-only.md) | 채택 |
 | 0006 | product | [사전 조회와 DB 제약으로 상품명 중복 처리](0006-product-name-uniqueness.md) | 채택 |
 | 0007 | stock | [멱등성 키로 DB 재고 증가를 확정하고 Redis 실패 허용](0007-stock-increase.md) | 대체됨 |
 | 0008 | stock | [저장된 멱등성 키의 재고 증가 요청을 거절](0008-stock-increase-duplicate-rejection.md) | 대체됨 |
 | 0009 | stock | [요청 종류와 멱등성 키로 공통 요청 이력 관리](0009-stock-request-history.md) | 채택 |
+| 0010 | stock | [DB 수량과 버전으로 Redis 반영과 대사](0010-stock-cache-reconciliation.md) | 채택 |
 
 0001~0006은 기존 대화에서 합의하고 구현한 내용을 2026-11-07에 정리한 기록이다.
 이후 기록은 각 문서의 기록일을 따른다. 번호는 실제 합의 시점의 순서를 의미하지 않는다.

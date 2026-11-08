@@ -29,15 +29,10 @@ stock은 `ProductCreated`를 받아 수량이 0인 Stock을 만든다.
 
 ## Redis 초기화
 
-- `infra.StockCache`가 `stock:available:{상품ID}`에 문자열 `"0"`을 `SET NX`로 저장한다. 실제 키 예시는 `stock:available:42`다.
-- 기존 키는 덮어쓰지 않고 TTL도 설정하지 않는다. 기존 값이 DB와 일치하는지 보정하지 않는다.
-- Redis 접근의 `DataAccessException`은 로그 후 반환한다. 연결과 명령 타임아웃은 각각 500ms다.
-- DB 커밋 후 초기화 전 종료되면 키가 누락될 수 있다. 중복 메시지로 복구하지 않는다.
-- 재고 변경과 지연된 초기화가 겹칠 때 최신 값이 보장되지는 않는다.
-
-선택한 이유와 예약 수량 복원 위험은 [Redis 실패 허용 결정](../adr/0004-stock-redis-initialization.md)에 있다.
-캐시 복구와 대사, 재고 조회 API, 주문 재고 차감은 아직 구현하지 않았다.
-[스터디 재고 API 명세](../../docs/api/stock.md)를 이미 구현된 API로 해석하지 않는다.
+`stock:available:{상품ID}`에 Hash 필드 `quantity=0`, `version=0`을 키가 없을 때만 저장한다.
+기존 Hash와 문자열 키는 초기화로 덮어쓰지 않으며 TTL은 설정하지 않는다.
+실패해도 DB 커밋은 유지하고, 누락이나 불일치는 주기 대사가 복구한다.
+재고 조회 API와 주문 재고 차감은 아직 구현하지 않았다.
 
 `StockCreated`는 DB의 초기 재고 생성 사실이다. Redis가 먼저 준비된다는 순서 보장은 없다.
 이벤트의 수량 0은 발생 당시 값이며 이후 현재 수량을 조회한 결과가 아니다.
@@ -58,20 +53,14 @@ stock은 `ProductCreated`를 받아 수량이 0인 Stock을 만든다.
 키는 공백만으로 구성할 수 없고 최대 128자다. stock 공통 `request_history`의 `(request_type, idempotency_key)` 복합 PK로 중복을 막는다.
 본문의 `quantity`는 필수이며 1~10,000이다. 상품 ID는 양수여야 한다.
 
-외부 코드가 호출하는 공개 진입점은 `StockIncreaseService.increaseForRequest`다.
-이 메서드는 트랜잭션을 선언하지 않고 내부 DB 처리 후 Redis 반영을 조율한다.
-`StockWriteService`는 `public` 없이 선언해 같은 `com.eda.stock.service` 패키지에서만 접근한다.
-내부 `increase` 메서드의 `@Transactional`로 이력·재고·Outbox를 함께 저장한다.
-현재 Controller 호출에는 외부 트랜잭션이 없으므로 내부 호출이 커밋을 마친 뒤 Redis를 호출한다.
-외부 트랜잭션을 중단하는 설정은 두지 않는다. 향후 다른 트랜잭션 안에서 재사용하면
-DB 처리가 해당 트랜잭션에 참여할 수 있으므로 커밋과 Redis 호출 순서를 다시 설계해야 한다.
+공개 진입점 `StockIncreaseService.increaseForRequest`는 DB 커밋 후 수량과 버전을 Redis에 반영한다.
+요청 이력·재고·Outbox는 내부 `StockWriteService`의 한 트랜잭션으로 저장한다.
+현재 HTTP 호출에는 외부 트랜잭션이 없다. 다른 트랜잭션 안에서 재사용할 경우에는 커밋 경계를 다시 논의한다.
 
-1. `StockWriteService.increase`의 트랜잭션에서 요청 종류 `STOCK_INCREASE`와 키를 이력에 `save()`한다.
-2. 같은 요청 종류와 키가 이미 있으면 복합 PK로 거절한다. 다른 요청 종류는 같은 키를 사용할 수 있다.
-3. 재고를 조회해 증가시키고 `StockIncreased` Outbox를 이력과 함께 커밋한다.
-4. 커밋에 성공한 경우에만 `StockIncreaseService`가 Redis의 기존 가용 재고에 증가량을 한 번 더한다.
-5. `200 OK`의 `quantity`는 해당 요청이 증가시킨 후의 DB 수량이며, `availableQuantity`는 Redis 증가 명령의 반환값이다.
-   Redis 호출에 실패하거나 결과가 불확실하면 `availableQuantity`는 `null`이다.
+Redis는 증가량을 더하지 않고 DB의 전체 수량을 저장한다. 더 오래된 버전은 무시하고,
+같거나 최신인 버전은 수량과 함께 원자적으로 저장한다. API의 `quantity`는 해당 요청의 DB 결과,
+`availableQuantity`는 스크립트 처리 후 Redis 수량이며 반영 실패 시 `null`이다.
+따라서 더 최신 요청이 먼저 반영되면 두 응답 수량은 다를 수 있다.
 
 이력에는 요청 종류, 키, 생성 시각만 남긴다. 상품 ID나 응답은 저장하지 않으며
 최초 응답을 재반환하지 않는다. `request_history_pkey` 위반은 기존 API 예외 처리에서 `409`로 변환한다.
@@ -97,15 +86,14 @@ Kafka는 기존 Relay가 발행하며 Redis 성공 여부와 발행 순서는 �
 재고나 Outbox 저장이 실패하면 이력도 롤백되므로 같은 키로 다시 요청할 수 있다.
 Redis 반영 실패나 DB 커밋 직후 서버 종료가 발생해도 키는 유지되며, 같은 키로 Redis를 다시 실행하지 않는다.
 
-### 이번 구현의 경계
+### 대사와 복구
 
-- Redis 반영은 `INCRBY`를 한 번 호출한다. Lettuce는 연결이 끊긴 동안 명령을 거절하고, 재연결 시 `INCRBY`를 재전송하지 않도록 설정한다.
-- 키가 없다면 Redis 명령의 동작에 따라 0에서 증가한다. 기존 DB 수량이나 예약을 복원한 값이라고 보장하지 않는다.
-- DB 커밋 후 종료되거나 Redis 반영에 실패하면 불일치가 남을 수 있다. 증가 재처리, 대사, 데이터 유실 복구는 구현하지 않는다.
-- 최초 성공 응답이 유실되면 재요청은 `409`를 반환할 뿐 원래 응답이나 Redis 반영 결과를 알려주지 않는다.
-- 저장된 키를 삭제하거나 새 키로 재요청하면 DB가 다시 증가할 수 있다. 이력 보관·정리 정책과 인증에 따른 키 범위는 후속 과제다.
+기본적으로 시작 시와 대사 완료 60초 후마다 DB 재고를 상품 ID 순서로 100건씩 읽어 Redis에 반영한다.
+증가 요청과 같은 버전 비교를 사용하므로 읽기와 쓰기 사이에 새 증가가 발생해도 최신 값을 덮어쓰지 않는다.
+실패한 상품은 로그를 남기고 다음 상품을 진행하며, 다음 주기에 다시 시도한다.
+대사는 DB와 요청 이력 및 Outbox를 변경하지 않는다.
 
-키 범위와 이전 결정은 [공통 요청 이력 결정](../adr/0009-stock-request-history.md)에 정리했다.
-검증은 `StockIncreaseServiceTest`, `StockControllerTest`, PostgreSQL을 사용하는
-`StockIncreaseServiceIntegrationTest`, 실제 Valkey를 사용하는 `StockIncreaseApiIntegrationTest`,
-Embedded Kafka를 사용하는 `StockIncreaseOutboxRelayIntegrationTest`에서 수행한다.
+기존 문자열 키와 누락된 키도 DB 기준으로 복구한다. DB 커밋과 Redis 반영 사이에는 불일치가 남을 수 있다.
+재고 감소·예약은 고려하지 않은 정책이며, 향후 도입 시 가용 재고의 복구 기준을 재설계해야 한다.
+키 만료, DB 복원으로 버전이 되돌아가는 상황, 멱등성 이력 정리 정책은 이번 범위에 포함하지 않는다.
+설정과 배포 절차는 [runbook](../runbook.md#재고-증가-확인), 선택 이유는 [버전 반영과 대사 결정](../adr/0010-stock-cache-reconciliation.md)을 참조한다.

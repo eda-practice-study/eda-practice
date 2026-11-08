@@ -16,7 +16,7 @@
 | 범위 | 구현된 내용 | 아직 구현하지 않은 내용 |
 |---|---|---|
 | product | `POST /api/products`, 상품과 Outbox 저장, 상품명 중복 처리 | 상품 목록 조회와 stock 연동 |
-| stock | 상품 생성 이벤트 소비, 초기 재고 0, Redis 초기화, 요청 종류와 멱등성 키로 중복을 막는 재고 증가 API, `StockCreated`와 `StockIncreased` 발행 | 재고 조회 API, 대사와 캐시 복구, 주문 재고 차감과 예약 복원 |
+| stock | 상품 생성 이벤트 소비, 초기 재고 0, Redis 초기화, 멱등성 키를 사용하는 재고 증가 API, 버전 기반 Redis 반영과 주기 대사, `StockCreated`와 `StockIncreased` 발행 | 재고 조회 API, 주문 재고 차감과 예약 복원 |
 | order | 상품 생성 이벤트 소비, 상품 스냅샷과 처리 이력 저장, `ProductSnapshotCreated` 발행 | 주문 API와 Saga, 상품 수정 이벤트에 따른 스냅샷 갱신 |
 | 공통 | OutboxRelay, 메시지 규격, stock과 order의 BATCH ACK 및 재시도와 DLT | DLT 조회와 재처리 API, 이력과 Outbox 정리 정책 |
 | notification | `*.events`를 별도 그룹으로 소비해 로그 출력 | 실제 알림 발송과 그에 대한 멱등 처리 |

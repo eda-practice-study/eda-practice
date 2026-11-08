@@ -113,12 +113,12 @@ stock과 order의 처리 이력은 입력 `ProductCreated`의 UUID를 사용하�
 Redis는 실제 상품 ID를 넣어 확인한다.
 
 ```bash
-docker compose exec redis valkey-cli GET stock:available:1
+docker compose exec redis valkey-cli HGETALL stock:available:1
 ```
 
-정상적인 최초 초기값은 문자열 `0`이다. 키가 없더라도 DB 커밋은 성공했을 수 있다.
+최초 Hash의 `quantity`와 `version`은 각각 `0`이다. 키가 없더라도 DB 커밋은 성공했을 수 있다.
 이벤트를 다시 보내거나 Redis에 무조건 0을 기록하는 방법을 복구 절차로 사용하지 않는다.
-이유는 [Redis 초기화 결정](adr/0004-stock-redis-initialization.md)을 참조한다.
+이유는 [버전 반영과 대사 결정](adr/0010-stock-cache-reconciliation.md)을 참조한다.
 
 Kafka UI에서는 다음 토픽의 key와 본문 및 헤더를 확인한다.
 
@@ -143,7 +143,7 @@ curl -i -X POST http://localhost:8084/api/stocks/1/increase \
 같은 요청 종류에서 키를 재전송하면 요청 내용에 관계없이 `409 DUPLICATE_STOCK_INCREASE_REQUEST`를 반환하고 재고와 이벤트는 추가하지 않는다.
 Redis 호출이 실패하면 DB 수량은 증가하고 `availableQuantity`는 `null`이다.
 중복 키 오류는 DB 증가가 이미 커밋됐다는 뜻이며 Redis 반영 여부나 최초 응답 수신 여부를 알려주지 않는다.
-응답을 받지 못했다는 이유로 새 키를 사용하면 다시 증가할 수 있다. 현재 자동 재처리나 대사는 없다.
+응답을 받지 못했다는 이유로 새 키를 사용하면 다시 증가할 수 있다. 같은 HTTP 요청을 재실행하지 않고 주기 대사가 DB 상태로 Redis를 복구한다.
 
 ```sql
 SELECT product_id, quantity, version FROM stock.stock WHERE product_id = 1;
@@ -194,13 +194,27 @@ WHERE NOT EXISTS (
 );
 ```
 
+### Redis 버전 반영과 대사 설정
+
+기존 stock 프로세스를 모두 중지한 뒤 새 버전을 실행한다. 문자열 GET·INCRBY 사용 코드와 혼용하지 않는다.
+기존 문자열 키는 증가 요청이나 첫 대사가 DB 수량·버전의 Hash로 전환하므로 키를 미리 삭제할 필요는 없다.
+
+| 설정 | 기본값 |
+|---|---|
+| `stock.reconciliation.enabled` | `true` |
+| `stock.reconciliation.interval` | `60s` (완료 후 간격, 최초 실행은 시작 시) |
+| `stock.reconciliation.batch-size` | `100` |
+
+대사가 실패한 상품은 다음 주기에 다시 처리한다. DB·Redis 장애가 지속되면 복구 시간도 늘어난다.
+여러 인스턴스의 중복 실행은 허용한다. 일반 테스트에서는 자동 대사를 끄고 직접 호출해 검증한다.
+
 ## 실패 위치 확인
 
 | 관측한 상태 | 확인할 부분 |
 |---|---|
 | product Outbox가 PENDING으로 남음 | product Relay 로그와 Kafka 연결 |
 | product 발행 완료, stock 또는 order 데이터 없음 | 해당 소비자의 로그, 그룹 위치와 전용 DLT |
-| stock DB는 있으나 Redis 키 없음 | stock의 Redis 실패 로그와 연결. 현재 자동 복구 기능 없음 |
+| stock DB는 있으나 Redis 키 없음 | stock의 Redis 실패 로그와 연결. 대사 설정과 실행 로그 확인 |
 | stock 또는 order DB는 있으나 후속 이벤트를 못 봄 | 해당 서비스 Outbox 상태와 Relay 로그 |
 | 관계나 테이블이 없다는 SQL 오류 | 해당 서비스의 최초 부팅과 Hibernate 스키마 생성 로그 |
 
