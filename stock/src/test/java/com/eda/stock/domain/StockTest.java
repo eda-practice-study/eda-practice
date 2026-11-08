@@ -12,7 +12,7 @@ class StockTest {
 
     @Test
     @DisplayName("재고는 0 으로 생성된다")
-    void createFor() {
+    void createFor_shouldStartEmpty_whenProductProvided() {
         Stock stock = Stock.createFor(1L);
 
         assertThat(stock.getProductId()).isEqualTo(1L);
@@ -21,28 +21,35 @@ class StockTest {
 
     @Test
     @DisplayName("상품 ID 없이 생성하면 실패한다")
-    void failToCreateWithoutProductId() {
+    void createFor_shouldReject_whenProductIdMissing() {
         assertThatThrownBy(() -> Stock.createFor(null))
                 .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
     }
 
     @Test
-    @DisplayName("입고하면 늘고, 확정하면 줄어든다")
-    void increaseAndDecrease() {
-        // given
+    @DisplayName("재고를 추가하면 수량이 증가한다")
+    void increase_shouldAddQuantity_whenQuantityPositive() {
         Stock stock = Stock.createFor(1L);
 
-        // when
         stock.increase(10);
+
+        assertThat(stock.getQuantity()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("재고를 차감하면 수량이 감소한다")
+    void decrease_shouldSubtractQuantity_whenStockSufficient() {
+        Stock stock = Stock.createFor(1L);
+        stock.increase(10);
+
         stock.decrease(3);
 
-        // then
         assertThat(stock.getQuantity()).isEqualTo(7);
     }
 
     @Test
     @DisplayName("실재고보다 많이 확정하면 실패한다 (정합성 깨짐)")
-    void failToDecreaseMoreThanQuantity() {
+    void decrease_shouldReject_whenStockInsufficient() {
         // given
         Stock stock = Stock.createFor(1L);
         stock.increase(2);
@@ -55,12 +62,20 @@ class StockTest {
 
     @ParameterizedTest
     @ValueSource(ints = {0, -1})
-    @DisplayName("0 이하 수량으로는 증감할 수 없다")
-    void failWithNonPositiveQuantity(int quantity) {
+    @DisplayName("추가할 수량이 0 이하이면 실패한다")
+    void increase_shouldReject_whenQuantityNonPositive(int quantity) {
         Stock stock = Stock.createFor(1L);
 
         assertThatThrownBy(() -> stock.increase(quantity))
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_STOCK_QUANTITY);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1})
+    @DisplayName("차감할 수량이 0 이하이면 실패한다")
+    void decrease_shouldReject_whenQuantityNonPositive(int quantity) {
+        Stock stock = Stock.createFor(1L);
+
         assertThatThrownBy(() -> stock.decrease(quantity))
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_STOCK_QUANTITY);
     }

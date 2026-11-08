@@ -13,6 +13,10 @@ public enum ErrorCode {
 
     PRODUCT_NAME_DUPLICATED(HttpStatus.CONFLICT, "이미 등록된 상품명입니다"),
 
+    STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "재고를 찾을 수 없습니다"),
+    STOCK_INCREASE_CONFLICT(HttpStatus.CONFLICT, "재고 변경에 실패했습니다"),
+    DUPLICATE_STOCK_INCREASE_REQUEST(HttpStatus.CONFLICT, "이미 처리한 재고 증가입니다"),
+
     OUT_OF_STOCK(HttpStatus.CONFLICT, "재고가 부족합니다"),
     INVALID_STOCK_QUANTITY(HttpStatus.BAD_REQUEST, "재고 수량이 올바르지 않습니다");
 

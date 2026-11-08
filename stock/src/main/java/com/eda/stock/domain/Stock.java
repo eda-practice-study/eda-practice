@@ -8,10 +8,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -30,6 +32,11 @@ public class Stock {
 
     @Column(nullable = false, comment = "실재고 수량")
     private int quantity;
+
+    @Version
+    @Column(nullable = false)
+    @ColumnDefault("0")
+    private Long version;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false, comment = "생성 시각")
@@ -54,6 +61,9 @@ public class Stock {
 
     public void increase(int quantity) {
         requirePositive(quantity);
+        if (quantity > Integer.MAX_VALUE - this.quantity) {
+            throw new BusinessException(ErrorCode.INVALID_STOCK_QUANTITY);
+        }
         this.quantity += quantity;
     }
 

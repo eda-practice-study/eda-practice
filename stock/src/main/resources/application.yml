@@ -4,7 +4,18 @@ server:
 spring:
   application:
     name: stock
+  data:
+    redis:
+      connect-timeout: 500ms
+      timeout: 500ms
   kafka:
+    consumer:
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: batch
     producer:
       acks: all
       properties:
@@ -25,3 +36,9 @@ spring:
         default_schema: stock
         hbm2ddl:
           create_namespaces: true
+
+stock:
+  reconciliation:
+    enabled: true
+    interval: 60s
+    batch-size: 100
