@@ -27,3 +27,9 @@ spring:
         default_schema: orders
         hbm2ddl:
           create_namespaces: true            # 스키마가 없으면 생성
+
+stock:
+  client:
+    base-url: http://${STOCK_HOST:localhost}:8084
+    connect-timeout: 300ms
+    read-timeout: 1500ms     # stock 이 Redis 를 기다리는 500ms(최악 두 번)보다 길게 둬, stock 이 먼저 실패를 알리게 한다

@@ -10,3 +10,9 @@ spring:
   kafka:
     consumer:
       auto-offset-reset: earliest
+
+stock:
+  client:
+    base-url: http://localhost:8084
+    connect-timeout: 300ms
+    read-timeout: 1500ms
