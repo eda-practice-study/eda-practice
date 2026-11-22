@@ -39,6 +39,9 @@ public class Order {
     @Column(nullable = false, comment = "주문 회원 ID")
     private Long memberId;
 
+    @Column(nullable = false, unique = true, length = 36, comment = "stock 재고 차감·복원에 쓰는 주문 키")
+    private String orderKey;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30, comment = "주문 상태")
     private OrderStatus status;
@@ -58,8 +61,9 @@ public class Order {
     @Column(nullable = false, comment = "수정 시각")
     private LocalDateTime updatedAt;
 
-    private Order(Long memberId, List<OrderLine> orderLines) {
+    private Order(Long memberId, String orderKey, List<OrderLine> orderLines) {
         this.memberId = memberId;
+        this.orderKey = orderKey;
         this.orderLines = orderLines;
         this.status = OrderStatus.CREATED;
         this.totalAmount = orderLines.stream()
@@ -67,8 +71,8 @@ public class Order {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    public static Order create(Long memberId, List<LineItem> items) {
-        if (memberId == null) {
+    public static Order create(Long memberId, String orderKey, List<LineItem> items) {
+        if (memberId == null || orderKey == null || orderKey.isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }
 
@@ -84,7 +88,7 @@ public class Order {
                 .map(item -> OrderLine.of(item.productId(), item.productName(), item.unitPrice(), item.quantity()))
                 .collect(Collectors.toCollection(ArrayList::new));
 
-        return new Order(memberId, orderLines);
+        return new Order(memberId, orderKey, orderLines);
     }
 
     public List<OrderLine> getOrderLines() {

@@ -14,6 +14,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class OrderTest {
 
+    private static final String ORDER_KEY = "7f3c2a10-0000-4000-8000-000000000001";
+
     private Order.LineItem lineItem(long productId, int quantity) {
         return new Order.LineItem(productId, "상품" + productId, BigDecimal.valueOf(10000), quantity);
     }
@@ -28,7 +30,7 @@ class OrderTest {
     @DisplayName("주문을 생성하면 CREATED 상태이고 총액이 계산된다")
     void create() {
         // when
-        Order order = Order.create(1L, List.of(lineItem(101L, 2), lineItem(102L, 1)));
+        Order order = Order.create(1L, ORDER_KEY, List.of(lineItem(101L, 2), lineItem(102L, 1)));
 
         // then
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CREATED);
@@ -38,7 +40,14 @@ class OrderTest {
     @Test
     @DisplayName("회원 ID 가 없으면 생성에 실패한다")
     void failWithoutMemberId() {
-        assertValidationError(() -> Order.create(null, List.of(lineItem(101L, 1))));
+        assertValidationError(() -> Order.create(null, ORDER_KEY, List.of(lineItem(101L, 1))));
+    }
+
+    @Test
+    @DisplayName("주문 키가 없으면 생성에 실패한다")
+    void failWithoutOrderKey() {
+        assertValidationError(() -> Order.create(1L, null, List.of(lineItem(101L, 1))));
+        assertValidationError(() -> Order.create(1L, " ", List.of(lineItem(101L, 1))));
     }
 
     @Test
@@ -46,22 +55,22 @@ class OrderTest {
     void lineRules() {
         List<Order.LineItem> twentyOne = LongStream.rangeClosed(1, 21).mapToObj(id -> lineItem(id, 1)).toList();
 
-        assertValidationError(() -> Order.create(1L, List.of()));
-        assertValidationError(() -> Order.create(1L, twentyOne));
-        assertValidationError(() -> Order.create(1L, List.of(lineItem(101L, 1), lineItem(101L, 2))));
+        assertValidationError(() -> Order.create(1L, ORDER_KEY, List.of()));
+        assertValidationError(() -> Order.create(1L, ORDER_KEY, twentyOne));
+        assertValidationError(() -> Order.create(1L, ORDER_KEY, List.of(lineItem(101L, 1), lineItem(101L, 2))));
     }
 
     @ParameterizedTest
     @ValueSource(ints = {0, 11})
     @DisplayName("상품 한 줄의 수량은 1~10개다")
     void quantityRange(int quantity) {
-        assertValidationError(() -> Order.create(1L, List.of(lineItem(101L, quantity))));
+        assertValidationError(() -> Order.create(1L, ORDER_KEY, List.of(lineItem(101L, quantity))));
     }
 
     @Test
     @DisplayName("주문 라인은 외부에서 수정할 수 없다")
     void orderLinesAreReadOnly() {
-        Order order = Order.create(1L, List.of(lineItem(101L, 1)));
+        Order order = Order.create(1L, ORDER_KEY, List.of(lineItem(101L, 1)));
 
         assertThatThrownBy(() -> order.getOrderLines().clear())
                 .isInstanceOf(UnsupportedOperationException.class);

@@ -33,3 +33,12 @@ stock:
     base-url: http://${STOCK_HOST:localhost}:8084
     connect-timeout: 300ms
     read-timeout: 1500ms     # stock 이 Redis 를 기다리는 500ms(최악 두 번)보다 길게 둬, stock 이 먼저 실패를 알리게 한다
+  restore:
+    pool-size: 8
+    queue-capacity: 200
+    retry:
+      max-retries: 5
+      delay: 1s
+      multiplier: 2
+      max-delay: 16s
+      jitter: 200ms
