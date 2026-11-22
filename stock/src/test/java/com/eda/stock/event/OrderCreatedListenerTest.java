@@ -19,10 +19,14 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 
+@ExtendWith(OutputCaptureExtension.class)
 class OrderCreatedListenerTest extends IntegrationTest {
 
     @Autowired
@@ -97,8 +101,8 @@ class OrderCreatedListenerTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("DB 재고가 부족하면 어떤 상품도 차감하지 않고 건너뛰며, 다음 주문은 처리한다")
-    void notEnoughInDb() {
+    @DisplayName("DB 재고가 부족하면 재시도 없이 ERROR 로그를 남기고 건너뛰며, 다음 주문은 처리한다")
+    void notEnoughInDb(CapturedOutput output) {
         stock(1L, 10);
         stock(2L, 0);
 
@@ -111,11 +115,12 @@ class OrderCreatedListenerTest extends IntegrationTest {
         assertThat(quantity(1L)).isEqualTo(9);
         assertThat(quantity(2L)).isZero();
         assertThat(stockDecreased()).extracting(OutboxMessage::getMessageKey).containsExactly("2");
+        assertThat(output).contains("DB 재고가 부족해 차감하지 못했습니다").doesNotContain("Backoff");
     }
 
     @Test
-    @DisplayName("order.events 의 다른 이벤트는 무시한다")
-    void ignoreOtherEvents() {
+    @DisplayName("order.events 의 다른 이벤트는 처리 실패 없이 무시한다")
+    void ignoreOtherEvents(CapturedOutput output) {
         stock(1L, 10);
 
         kafkaTemplate.send(OrderEvents.record(UUID.randomUUID(), "ProductSnapshotRegistered", "1",
@@ -125,6 +130,7 @@ class OrderCreatedListenerTest extends IntegrationTest {
         await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
                 assertThat(stockDecreaseRepository.existsByOrderId(1L)).isTrue());
         assertThat(quantity(1L)).isEqualTo(9);
+        assertThat(output).doesNotContain("Backoff");
     }
 
     private void stock(Long productId, int quantity) {
