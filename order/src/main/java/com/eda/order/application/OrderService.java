@@ -41,10 +41,10 @@ public class OrderService {
 
     // stock 호출은 트랜잭션 밖에서 한다. 응답을 기다리는 동안 DB 커넥션을 잡지 않기 위해서다.
     public Order create(Long memberId, List<Item> items) {
-        Map<Long, ProductSnapshot> snapshots = productSnapshotRepository
-                .findAllByProductIdIn(items.stream().map(Item::productId).toList()).stream()
+        List<Long> productIds = items.stream().map(Item::productId).distinct().toList();
+        Map<Long, ProductSnapshot> snapshots = productSnapshotRepository.findAllByProductIdIn(productIds).stream()
                 .collect(Collectors.toMap(ProductSnapshot::getProductId, Function.identity()));
-        if (snapshots.size() != items.size()) {
+        if (snapshots.size() != productIds.size()) {
             throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
         }
 

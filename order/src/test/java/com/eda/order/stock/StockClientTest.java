@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
-// 운영과 같은 요청 팩토리로 진짜 소켓을 열어, 타임아웃과 연결 실패가 실제로 어떤 예외로 오는지 확인한다
 class StockClientTest {
 
     private static final String ORDER_KEY = "7f3c2a10-0000-4000-8000-000000000001";

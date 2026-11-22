@@ -21,7 +21,6 @@ public class OrderCreatedListener {
     private final StockDecreaseService stockDecreaseService;
     private final JsonMapper jsonMapper;
 
-    // order.events 에는 ProductSnapshotRegistered 도 오므로 타입을 먼저 본다
     @KafkaListener(topics = "order.events", groupId = "stock-service")
     public void on(ConsumerRecord<String, String> record) {
         Header type = record.headers().lastHeader(MessageHeader.MESSAGE_TYPE);

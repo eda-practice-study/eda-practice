@@ -31,7 +31,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-// Issue #24 완료 조건: 재고 10개에 1개씩 동시 100건 → 10건만 성공, Redis 가 먼저 0, 이어서 Stock DB 도 0.
 // 테스트 Kafka 는 파티션 1개라 DB 차감은 순서대로 소비된다. DB 쪽 동시성은 StockDecreaseConcurrencyTest 가 본다.
 class OrderStockFlowTest extends IntegrationTest {
 

@@ -52,7 +52,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.context.WebApplicationContext;
 
-// stock 은 MockRestServiceServer 로 대신한다. 타임아웃과 연결 실패의 예외 모양은 StockClientTest 가 실제 소켓으로 확인한 것과 같다.
 @SpringBootTest(properties = {
         "spring.kafka.listener.auto-startup=false",
         "outbox.enabled=false",
@@ -100,9 +99,8 @@ class OrderApiTest {
             return builder.build();
         }
 
-        // restore 를 요청 스레드에서 바로 실행해, 응답 뒤에 restore 요청이 있었는지 없었는지를 확정한다
-        @Bean
-        TaskExecutor restoreExecutor() {
+        @Bean("restoreExecutor")
+        TaskExecutor synchronousRestoreExecutor() {
             return new SyncTaskExecutor();
         }
     }

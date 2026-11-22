@@ -1,7 +1,6 @@
 package com.eda.order.api;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
@@ -25,11 +24,5 @@ public record CreateOrderRequest(
             @Max(value = 10, message = "10 이하여야 합니다")
             Integer quantity
     ) {
-    }
-
-    // stock 을 부르기 전에 막아야 하므로 도메인 검증까지 기다리지 않는다
-    @AssertTrue(message = "같은 상품은 한 번만 담을 수 있습니다")
-    public boolean isDistinctProducts() {
-        return items == null || items.stream().map(Item::productId).distinct().count() == items.size();
     }
 }
