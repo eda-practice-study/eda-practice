@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -35,6 +36,9 @@ public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false, unique = true, comment = "재고 예약 ID (stock TCC 멱등 키)")
+    private UUID reservationId;
 
     @Column(nullable = false, comment = "주문 회원 ID")
     private Long memberId;
@@ -59,6 +63,7 @@ public class Order {
     private LocalDateTime updatedAt;
 
     private Order(Long memberId, List<OrderLine> orderLines) {
+        this.reservationId = UUID.randomUUID();
         this.memberId = memberId;
         this.orderLines = orderLines;
         this.status = OrderStatus.CREATED;
