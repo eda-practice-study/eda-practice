@@ -11,5 +11,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     runtimeOnly("org.postgresql:postgresql")
 
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testRuntimeOnly("com.h2database:h2")
 }
