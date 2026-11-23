@@ -4,6 +4,14 @@ server:
 spring:
   application:
     name: order
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.block.ms: 3000
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/eda?currentSchema=orders
     username: eda
@@ -19,3 +27,11 @@ spring:
         default_schema: orders
         hbm2ddl:
           create_namespaces: true            # 스키마가 없으면 생성
+
+order:
+  stock-client:
+    base-url: http://${STOCK_HOST:localhost}:8084
+    connect-timeout: 1s
+    read-timeout: 2s      # 넘기면 결과를 모르는 것으로 보고 같은 reservationId 로 재시도
+    max-attempts: 3       # 모두 결과를 모르면 503 STOCK_SERVICE_UNAVAILABLE + 예약 취소 요청
+    retry-backoff: 100ms  # 재시도 간격 (시도마다 배로 늘어남)

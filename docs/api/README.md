@@ -5,7 +5,8 @@
 | 문서 | 서비스 | API |
 |------|--------|-----|
 | [product.md](product.md) | product | 상품 생성 · 상품 목록 조회 |
-| [stock.md](stock.md) | stock | 재고 증가 · 재고 조회 · 내부 API |
+| [stock.md](stock.md) | stock | 재고 증가 · 재고 조회 · 내부 API (재고 예약 TCC) |
+| [order.md](order.md) | order | 주문 생성 |
 
 ---
 
@@ -68,7 +69,7 @@
 
 | # | 서비스 | 기능 | METHOD | URI | 성공 |
 |---|--------|------|--------|-----|------|
-| 1 | product | 상품 생성 | POST | `/api/products` | 201 |
+| 1 | product | 상품 생성 | POST | `/api/products` | 200 |
 | 2 | product | 상품 목록 조회 | GET | `/api/products` | 200 |
 | 3 | stock | 재고 증가 | POST | `/api/stocks/{productId}/increase` | 200 |
 | 4 | stock | 재고 조회 (검증용) | GET | `/api/stocks/{productId}` | 200 |
@@ -87,4 +88,6 @@
 | 호출 | METHOD | URI | 용도 |
 |------|--------|-----|------|
 | product → stock | GET | `/internal/stocks?productIds=` | 상품 목록에 가용 재고 붙이기 |
+| order → stock | POST | `/internal/stocks/reservations` | 주문 시 재고 예약 (TCC Try) |
+| order → stock | POST | `/internal/stocks/reservations/{reservationId}/cancel` | 재고 예약 취소 (TCC Cancel) |
 ---

@@ -55,4 +55,5 @@ docker compose up -d
 |------|------|
 | [docs/api/](docs/api/README.md) | API 명세|
 | [docs/outbox.md](docs/outbox.md) | Transactional Outbox|
+| [docs/stock-reservation-tcc.md](docs/stock-reservation-tcc.md) | 주문 시 재고 예약 TCC (Try · Confirm · Cancel) |
 

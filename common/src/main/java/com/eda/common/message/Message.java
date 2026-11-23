@@ -14,6 +14,8 @@ public record Message<T>(
         T payload
 ) {
 
+    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
+
     public static <T> Message<T> of(T payload) {
         if (payload == null) {
             throw new IllegalArgumentException("payload 는 필수입니다");
@@ -22,12 +24,16 @@ public record Message<T>(
         return new Message<>(UUID.randomUUID(), payload.getClass().getSimpleName(), Instant.now(), payload);
     }
 
-    public static <T> Message<T> from(ConsumerRecord<String, String> record, Class<T> payloadType, JsonMapper jsonMapper) {
+    public static <T> Message<T> from(ConsumerRecord<String, String> record, Class<T> payloadType) {
         return new Message<>(
                 UUID.fromString(header(record, MessageHeader.MESSAGE_ID)),
                 header(record, MessageHeader.MESSAGE_TYPE),
                 Instant.parse(header(record, MessageHeader.OCCURRED_AT)),
-                jsonMapper.readValue(record.value(), payloadType));
+                JSON_MAPPER.readValue(record.value(), payloadType));
+    }
+
+    public static boolean isType(ConsumerRecord<String, String> record, Class<?> payloadType) {
+        return payloadType.getSimpleName().equals(header(record, MessageHeader.MESSAGE_TYPE));
     }
 
     private static String header(ConsumerRecord<String, String> record, String name) {
