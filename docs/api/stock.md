@@ -75,11 +75,15 @@ stock 이 다른 서비스에 제공하는 동기 API. 사용자가 직접 호�
 
 ### 재고 예약 TCC
 
+자세한 흐름 · 장애 시나리오는 [stock-reservation-tcc.md](../stock-reservation-tcc.md) 참고.
+
 | 단계 | 호출 | Redis |
 |------|------|-------|
 | Try | order → `POST /internal/stocks/reservations` (동기, 결과를 모르면 같은 ID 로 최대 3번) | `available` → `reserved`, `reservation:{id}` 에 상품별 수량 기록 |
 | Confirm | `OrderCreated` 이벤트 수신 → Stock DB 차감 커밋 후 | `reserved` 에서 뺌, 기록은 `CONFIRMED` 로 남김 |
 | Cancel | `ReservationCancelRequested` 이벤트 · cancel API · 만료 스케줄러 | 기록된 수량만 `reserved` → `available` |
+
+Confirm 의 Stock DB 차감은 처리 기록(`processed_order`) · `StockDecreased` 이벤트(`stock.events`)와 한 트랜잭션으로 저장하고, 같은 주문 이벤트를 다시 받아도 한 번만 차감한다.
 
 - 모든 단계는 `reservationId` 로 멱등하다. 같은 ID 로 다시 와도 한 번만 반영한다
 - 빈 롤백: Try 보다 Cancel 이 먼저 오면 `CANCELLED` 표식만 남긴다

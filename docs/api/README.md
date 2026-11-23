@@ -5,7 +5,8 @@
 | 문서 | 서비스 | API |
 |------|--------|-----|
 | [product.md](product.md) | product | 상품 생성 · 상품 목록 조회 |
-| [stock.md](stock.md) | stock | 재고 증가 · 재고 조회 · 내부 API |
+| [stock.md](stock.md) | stock | 재고 증가 · 재고 조회 · 내부 API (재고 예약 TCC) |
+| [order.md](order.md) | order | 주문 생성 |
 
 ---
 
