@@ -11,7 +11,7 @@ import org.testcontainers.containers.GenericContainer;
         "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
         "outbox.enabled=false"
 })
-@EmbeddedKafka(partitions = 1, topics = "product.events")
+@EmbeddedKafka(partitions = 1, topics = {"product.events", "order.events"})
 public abstract class IntegrationTest {
 
     private static final GenericContainer<?> REDIS =
