@@ -87,4 +87,6 @@
 | 호출 | METHOD | URI | 용도 |
 |------|--------|-----|------|
 | product → stock | GET | `/internal/stocks?productIds=` | 상품 목록에 가용 재고 붙이기 |
+| order → stock | POST | `/internal/stocks/reservations` | 주문 시 재고 예약 (TCC Try) |
+| order → stock | POST | `/internal/stocks/reservations/{reservationId}/cancel` | 재고 예약 취소 (TCC Cancel) |
 ---
